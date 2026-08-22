@@ -27,6 +27,10 @@ Dès l'invitation et avant toute acceptation, l'objet utilisateur existe dans l'
 
 Après acceptation, `externalUserState` passe à `Accepted`. `UserType` reste à `Guest`. Aucun passage automatique vers `Member` ne se produit : c'est une opération distincte, à effectuer manuellement si elle est souhaitée.
 
+![Charlie External après acceptation : type d'utilisateur Invité, invitation Acceptée, 0 appartenance, 0 application, 0 rôle, 0 licence](../screenshots/lab2-invite-apres-acceptation.png)
+
+Les quatre compteurs à droite valent zéro. L'identité existe, l'accès n'existe pas : c'est exactement la séparation que le lab cherche à établir.
+
 Une fois ajouté au groupe, l'invité obtient l'accès Azure Reader exactement comme un membre interne. Azure RBAC ne fait aucune différence selon le `UserType` du principal.
 
 En parcourant l'annuaire, l'invité se heurte aux restrictions de lecture appliquées par défaut aux invités, réglées dans External Identities puis External collaboration settings.

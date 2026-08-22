@@ -28,7 +28,19 @@ Vérification de l'accès effectif des deux comptes via Access control (IAM) pui
 
 Le membre voit le resource group et son contenu en lecture. L'affectation apparaît dans Check access avec la mention qu'elle est héritée du groupe, et non attribuée directement.
 
+![Accès effectif de Bob Security sur rg-sc300-lab : rôle Lecteur hérité du groupe GRP-Security](../screenshots/lab1-acces-effectif-via-groupe.png)
+
 Le propriétaire, qui n'est pas membre, ne voit pas le resource group. Il ne figure dans aucune affectation de rôle Azure. Il peut en revanche modifier la composition du groupe depuis le portail Entra.
+
+Alice Marketing est bien propriétaire du groupe :
+
+![Alice Marketing, seule propriétaire du groupe GRP-Security](../screenshots/lab1-proprietaire-du-groupe.png)
+
+Et ne détient aucune affectation de rôle sur le resource group :
+
+![Alice Marketing : 0 attribution de rôle sur rg-sc300-lab](../screenshots/lab1-proprietaire-sans-acces.png)
+
+Les deux captures se lisent ensemble : même groupe, même portée, un membre qui reçoit Lecteur et une propriétaire qui ne reçoit rien.
 
 Aucun des deux comptes n'a de rôle Microsoft Entra. Ils n'accèdent à aucun écran d'administration de l'annuaire, ce qui confirme que l'affectation Azure RBAC n'a rien produit côté annuaire.
 

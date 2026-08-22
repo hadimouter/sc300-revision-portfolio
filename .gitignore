@@ -13,10 +13,9 @@ tokens/
 *.jwt
 
 # Captures d'ecran
-# Aucune image n'est publiee dans ce depot : les ecrans Microsoft Entra
-# exposent des Tenant ID, Object ID, adresses de messagerie et Correlation ID
-# dont l'anonymisation fiable demande plus d'effort que la valeur ajoutee.
-# Pour publier une image, l'ajouter explicitement avec `git add -f`.
+# Par defaut aucune image n'est suivie : les ecrans Microsoft Entra exposent
+# Tenant ID, Object ID, adresses de messagerie et Correlation ID.
+# Seul screenshots/ est autorise, et uniquement apres masquage verifie.
 *.png
 *.jpg
 *.jpeg
@@ -24,6 +23,10 @@ tokens/
 *.bmp
 *.webp
 *.pdf
+!screenshots/*.png
+
+# Captures sources non masquees : ne jamais publier
+_captures_brutes/
 
 # Sauvegardes locales
 .bak/

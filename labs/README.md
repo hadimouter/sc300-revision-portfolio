@@ -24,4 +24,8 @@ Les notions non couvertes par ces labs sont traitées uniquement sur le plan th�
 
 ## Captures d'écran
 
-Aucune capture n'est publiée dans ce dépôt. Les écrans concernés exposent des identifiants de tenant, des Object ID, des adresses de messagerie et des identifiants de corrélation dont l'anonymisation fiable demande plus d'effort que la valeur qu'ils ajoutent à une note écrite. Les observations sont donc retranscrites en texte, avec les valeurs sensibles remplacées par des libellés.
+Chaque lab est illustré par les écrans qui établissent son point, rassemblés dans [screenshots](../screenshots/).
+
+Toutes ont été relues avant publication. Les valeurs sensibles sont couvertes par des aplats opaques, jamais par un flou : Tenant ID, Object ID, noms d'utilisateur principaux, adresse IP, identifiants de corrélation et de session, valeur du client secret, identifiant du Temporary Access Pass. Les comptes qui apparaissent (Alice Marketing, Bob Security, Charlie External) sont des comptes de test créés pour ces manipulations.
+
+Le tri a été volontairement sévère : une capture n'est publiée que si elle démontre quelque chose que le texte se contente d'affirmer. Les écrans de navigation et les étapes intermédiaires ne le sont pas.

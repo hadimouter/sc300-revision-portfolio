@@ -28,6 +28,8 @@ Sur une connexion consécutive à une première authentification déjà réalis�
 
 C'est le comportement normal du single sign-on, et c'est ce qui explique le signalement récurrent « la policy exige la MFA mais on ne me la demande jamais ». La réponse n'est pas de chercher une défaillance de la policy mais de régler la sign-in frequency, ce qui suppose du Conditional Access, donc P1.
 
+![Détails de l'authentification : méthode « Previously satisfied », réussite Oui, exigence « First factor requirement »](../screenshots/lab4-mfa-previously-satisfied.png)
+
 ## Manipulations, connexions de service principal
 
 Déclenchement du client credentials flow du [lab 3](03-app-registration-graph.md), puis recherche de la trace correspondante.
@@ -53,6 +55,10 @@ Chaque opération de configuration apparaît avec son acteur dans le champ Initi
 
 Aucune de ces entrées ne figure dans les Sign-in logs, et aucune authentification ne figure dans les Audit logs. La séparation est nette : le premier journal répond à « qui s'est authentifié », le second à « qui a modifié la configuration ».
 
+![Journal d'audit : activité « Add app role assignment to service principal », catégorie ApplicationManagement, état success](../screenshots/lab4-audit-app-role-assignment.png)
+
+Le type d'activité nomme précisément l'opération. Les identifiants de corrélation, d'objet, de tenant et de session sont masqués.
+
 ## Manipulations, Temporary Access Pass
 
 Activation de la méthode Temporary Access Pass dans Protection puis Authentication methods, avec un ciblage restreint à un groupe.
@@ -67,7 +73,13 @@ La policy expose la durée de vie minimale et maximale, le délai avant activati
 
 Le pass ne peut pas être généré pour soi-même. L'écran n'est pas disponible sur son propre compte, ce qui est cohérent avec le rôle Authentication Administrator, prévu pour agir sur les comptes d'autrui.
 
+![Détails du Temporary Access Pass de Bob Security : validité 1 heure, « Utilisation ponctuelle : Non », « Est utilisable : Oui, activé par la stratégie »](../screenshots/lab4-tap-details.png)
+
+Le champ « Utilisation ponctuelle » vaut Non sur ce pass précis, alors que la policy autorisait les deux : c'est bien à la création que le choix s'est fait.
+
 À la connexion, l'onglet Authentication Details affiche explicitement **Temporary Access Pass** comme méthode, et l'exigence de MFA est marquée satisfaite. Le TAP a donc bien valeur de MFA, ce qui est précisément ce qui permet à son porteur d'enregistrer une méthode dans un tenant exigeant la MFA pour l'enregistrement.
+
+![Détails d'authentification de la connexion de Bob Security : méthode « Temporary Access Pass », opération réussie true, résultat « User approved »](../screenshots/lab4-tap-authentication-details.png)
 
 Activer la méthode dans la policy n'a créé aucun pass. Autoriser une méthode et la provisionner pour un utilisateur donné sont deux opérations distinctes, ce qui vaut d'ailleurs pour toutes les méthodes.
 

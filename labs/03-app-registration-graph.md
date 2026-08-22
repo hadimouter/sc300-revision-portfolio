@@ -40,7 +40,15 @@ Suppression du client secret en fin de lab.
 
 L'application object et le service principal portent le **même Application (client) ID** et des **Object ID différents**. C'est la vérification la plus rapide pour établir qu'il s'agit de deux objets et non de deux vues du même.
 
+![Vue Application d'entreprise de SC300-Lab-App, avec ID d'application et ID d'objet masqués](../screenshots/lab3-enterprise-application.png)
+
+Le sous-titre indique « Application d'entreprise » là où l'écran App registrations indique « Inscription d'application » : ce sont bien deux objets. Les deux identifiants sont masqués sur la capture, la comparaison a été faite en direct.
+
 Avant consentement, la colonne Status de l'écran API permissions affiche un avertissement sur les deux permissions, et l'appel Graph échoue. Après consentement, la colonne passe à un statut accordé pour le tenant. Configurer et accorder sont bien deux opérations distinctes.
+
+![API autorisées : User.Read en Déléguée sans consentement admin requis, User.Read.All en Application avec consentement requis et statut « Pas accordé »](../screenshots/lab3-permissions-deleguee-vs-application.png)
+
+Cette capture porte trois enseignements en une seule vue. Les deux permissions viennent de la même API et portent presque le même nom, mais l'une est Déléguée et l'autre Application. La colonne « Consentement de l'administrateur requis » vaut Non pour la première et Oui pour la seconde. Et le statut d'avertissement montre qu'une permission configurée n'est pas une permission accordée.
 
 Le corps de la requête de token confirme que le scope doit valoir `https://graph.microsoft.com/.default`. Une tentative avec `https://graph.microsoft.com/User.Read.All` est rejetée : dans le client credentials flow, `.default` n'est pas une commodité mais la seule valeur acceptée.
 
@@ -66,7 +74,19 @@ Le token décodé contient :
 
 La permission déléguée `User.Read` n'apparaît nulle part dans ce token, ce qui est attendu : elle n'a de sens que dans un flux avec utilisateur.
 
+Le secret utilisé pour ce flux n'expose jamais sa valeur dans le portail après création :
+
+![Métadonnées du client secret : valeur masquée, seule la date d'expiration reste lisible](../screenshots/lab3-client-secret.png)
+
+![Décodage du token app-only : aud graph.microsoft.com, roles ['User.Read.All'], scp None, tid et azp masqués](../screenshots/lab3-claims-token-app-only.png)
+
+Les secrets sont passés par variables d'environnement (`$CLIENT_SECRET`, `$TENANT_ID`) et n'apparaissent à aucun moment en clair.
+
 L'appel `GET /v1.0/users` renvoie l'ensemble des utilisateurs du tenant, sans filtrage. C'est la démonstration concrète de l'écart entre les deux modèles : la même permission en délégué aurait été bornée par les droits de l'utilisateur connecté.
+
+![Réponse Graph : quatre utilisateurs retournés, dont Charlie External en type=Guest](../screenshots/lab3-appel-graph-app-only.png)
+
+L'appel remonte y compris l'invité, sans qu'aucun utilisateur ne soit connecté.
 
 ## Ce qu'il faut en retenir
 

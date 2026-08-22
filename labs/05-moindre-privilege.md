@@ -54,6 +54,10 @@ Pour couper immédiatement, il faut agir sur l'identité et non sur la permissio
 
 La suppression de `User.Read.All` de l'écran API permissions est une opération distincte de la révocation du consentement. Après elle, l'application ne demande plus la permission, ce qui empêche un futur consentement de la réaccorder par inadvertance.
 
+![API autorisées après révocation : User.Read reste « Accordé », User.Read.All repasse à « Pas accordé », avec la notification « Autorisation supprimée de SC300-Lab-App »](../screenshots/lab5-consentement-revoque.png)
+
+Les deux permissions se lisent côte à côte : la déléguée conserve son consentement, l'applicative l'a perdu.
+
 L'ordre importe. Révoquer sans supprimer laisse la permission configurée, donc reconsentable en un clic. Supprimer sans révoquer laisse le grant en place sur le service principal.
 
 ### Vérifier les traces

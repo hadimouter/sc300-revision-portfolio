@@ -48,6 +48,8 @@ Ce dépôt ne prétend pas couvrir l'intégralité du study guide, et il vaut mi
 
 Les labs ont été réalisés sur un tenant en **édition Free avec Security Defaults**. Tout ce qui exige P1, P2, Microsoft Entra ID Governance ou Workload ID Premium est donc traité sur le plan théorique uniquement, sans manipulation : Conditional Access, PIM, access reviews, Entitlement Management, Lifecycle Workflows, ID Protection, groupes dynamiques et administrative units à membres dynamiques.
 
+![Portail Identity Governance : « Ce locataire n'a pas d'abonnement aux prérequis pour Gouvernance Microsoft Entra ID »](screenshots/limites-licence-governance.png)
+
 Plusieurs sujets du study guide restent peu ou pas développés à ce stade : le provisioning applicatif SCIM en profondeur, la configuration du single sign-on SAML et de son mapping de claims, les domaines personnalisés et le branding, Microsoft Entra Verified ID, et Permissions Management.
 
 Le contenu reflète l'état du produit à la date de la dernière mise à jour. Microsoft Entra évolue vite, et certains écrans ou noms de fonctionnalités auront changé. La documentation officielle fait foi.
@@ -58,7 +60,7 @@ Ces notes sont un travail personnel de synthèse. Elles ne reproduisent ni ne pa
 
 Ce dépôt n'est ni affilié à Microsoft, ni approuvé par Microsoft. Microsoft, Microsoft Entra, Azure et SC-300 sont des marques de Microsoft Corporation. Keycloak est une marque de Red Hat. Elles sont citées ici à des fins d'identification, dans un contexte documentaire.
 
-Aucune capture d'écran n'est publiée dans ce dépôt. Les écrans concernés exposeraient des identifiants de tenant, des Object ID et des adresses de messagerie ; les observations sont retranscrites en texte, avec les valeurs sensibles remplacées par des libellés.
+Les captures d'écran publiées dans [screenshots](screenshots/) ont toutes été relues une par une avant publication. Les valeurs sensibles y sont couvertes par des aplats opaques : Tenant ID, Object ID, noms d'utilisateur principaux, adresse IP, identifiants de corrélation, valeur du client secret et identifiant du Temporary Access Pass. Les comptes visibles sont des comptes de test créés pour l'occasion. Les captures sources non masquées ne sont pas versionnées.
 
 ## Licence
 
