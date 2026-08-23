@@ -2,7 +2,7 @@
 
 ## Ce que le lab établit
 
-Que retirer un accès demande de distinguer l'identité, l'appartenance et le consentement, et que révoquer un consentement ne coupe pas une session déjà en cours.
+Que retirer un accès demande de distinguer l'identité, l'appartenance et le consentement, et que révoquer un consentement ne coupe pas automatiquement un access token déjà émis.
 
 ## Situation de départ
 
@@ -28,9 +28,11 @@ Une application détient la permission applicative `User.Read.All` sur Microsoft
 
 ### Retirer l'invité du groupe
 
-Le retrait est immédiat côté annuaire. Côté Azure, la vérification par Check access ne reflète pas le changement instantanément : le cache d'Azure Resource Manager peut retarder la prise en compte de plusieurs minutes. Un test effectué trop tôt donne un faux négatif et pousse à chercher un problème qui n'existe pas.
+Le retrait est immédiat côté annuaire. Côté Azure, la vérification par Check access ne reflète pas forcément le changement instantanément : les caches et la propagation peuvent retarder la prise en compte. Un test effectué trop tôt peut donc donner une lecture trompeuse.
 
-Après propagation, l'invité n'a plus aucun rôle Azure effectif. Son compte, lui, existe toujours dans l'annuaire : l'identité survit à l'entitlement, ce qui est cohérent mais laisse un compte invité orphelin. Dans un tenant disposant d'Entitlement Management, la policy d'un access package aurait pu supprimer automatiquement le compte à l'expiration de la dernière assignment. En édition Free, ce nettoyage reste manuel.
+Après propagation, l'invité n'a plus aucun rôle Azure effectif. Son compte, lui, existe toujours dans l'annuaire : l'identité survit à l'entitlement.
+
+Dans un scénario gouverné par Entitlement Management, l'expiration ou le retrait d'une assignment d'access package retire les ressources fournies par cette assignment. Selon la configuration de cycle de vie externe et les autres assignments restantes, le compte invité peut ensuite être nettoyé.
 
 ### Vérifier le membre interne
 
@@ -40,39 +42,58 @@ L'utilisateur interne conserve Reader. Le retrait a bien porté sur une apparten
 
 Le propriétaire n'a reçu aucun accès Azure à aucun moment du lab. Il continue de gérer la composition du groupe.
 
-C'est ici que le raisonnement de moindre privilège doit aller plus loin que le constat. Le propriétaire dispose d'un chemin d'escalade direct : il peut s'ajouter lui-même comme membre et obtenir Reader, sans approbation ni trace autre qu'une entrée dans les Audit logs. Le cloisonnement Owner et Member documente une séparation de responsabilités, il ne constitue pas une barrière technique. Gouverner la propriété d'un groupe est donc aussi important que gouverner son appartenance, et c'est exactement ce que PIM for Groups permettrait de rendre temporaire dans un tenant en P2.
+C'est ici que le raisonnement de moindre privilège doit aller plus loin que le constat. Le propriétaire peut avoir un chemin d'escalade en s'ajoutant comme membre et en héritant ensuite de ce que le groupe distribue. La propriété d'un groupe est donc un privilège à gouverner, pas un simple rôle décoratif.
 
 ### Révoquer le consentement administrateur
 
-La révocation s'effectue depuis Enterprise applications, sur le service principal, onglet Permissions. Elle supprime l'app role assignment.
+La révocation s'effectue depuis Enterprise applications, sur le service principal, onglet Permissions. Elle supprime le grant / app role assignment correspondant.
 
-Un test immédiat montre que l'access token obtenu avant la révocation **continue de fonctionner** contre Microsoft Graph. C'est l'observation la plus utile du lab : un access token est autoporteur, il embarque ses autorisations au moment de son émission, et rien ne le rappelle. Il reste valide jusqu'à son expiration, soit environ une heure.
+Un test immédiat montre que l'access token obtenu avant la révocation **continue de fonctionner** contre Microsoft Graph. C'est l'observation la plus utile du lab : l'access token a été émis avec ses autorisations et la suppression ultérieure du consentement ne réécrit pas ce JWT.
 
-Pour couper immédiatement, il faut agir sur l'identité et non sur la permission : désactiver le service principal, ou supprimer le credential. C'est aussi la raison d'être de la continuous access evaluation, qui n'est pas disponible pour ce scénario en édition Free.
+Le bon modèle mental est donc :
+
+```text
+Révoquer le consentement
+→ empêche l'obtention de nouveaux tokens avec cette permission
+→ ne détruit pas automatiquement le token déjà émis
+```
+
+Même prudence avec la désactivation de l'application ou la suppression du client secret : ces actions empêchent de nouvelles authentifications / émissions de token selon le mécanisme concerné, mais un access token déjà remis peut rester accepté jusqu'à son expiration si la ressource ne dispose pas d'un mécanisme de révocation anticipée applicable à ce scénario.
+
+La **Continuous Access Evaluation** permet à certaines ressources et certains clients compatibles de réagir à des événements critiques dans des scénarios pris en charge, surtout autour des sessions utilisateur. Elle ne doit pas être présentée comme une gomme universelle de tous les tokens app-only.
 
 ### Supprimer la permission configurée
 
-La suppression de `User.Read.All` de l'écran API permissions est une opération distincte de la révocation du consentement. Après elle, l'application ne demande plus la permission, ce qui empêche un futur consentement de la réaccorder par inadvertance.
+La suppression de `User.Read.All` de l'écran API permissions est une opération distincte de la révocation du consentement. Après elle, l'application ne demande plus cette permission dans sa configuration.
 
 ![API autorisées après révocation : User.Read reste « Accordé », User.Read.All repasse à « Pas accordé », avec la notification « Autorisation supprimée de SC300-Lab-App »](../screenshots/lab5-consentement-revoque.png)
 
 Les deux permissions se lisent côte à côte : la déléguée conserve son consentement, l'applicative l'a perdu.
 
-L'ordre importe. Révoquer sans supprimer laisse la permission configurée, donc reconsentable en un clic. Supprimer sans révoquer laisse le grant en place sur le service principal.
+L'ordre importe :
+
+- révoquer sans supprimer laisse la permission configurée et donc reconsentable ;
+- supprimer la permission configurée sans traiter le grant existant ne doit pas être supposé comme équivalent à une révocation complète de l'autorisation déjà accordée.
 
 ### Vérifier les traces
 
-Les Audit logs portent chacune de ces opérations, avec l'acteur dans Initiated by : le retrait du membre du groupe, la révocation de l'app role assignment, et la suppression de la permission configurée.
+Les Audit logs portent les opérations de configuration, avec l'acteur dans Initiated by : retrait du membre du groupe, retrait du grant / app role assignment et modification des permissions de l'application.
 
 ## Ce qu'il faut en retenir
 
-Retirer un accès demande d'identifier par quel mécanisme il a été accordé. Une appartenance de groupe se retire du groupe, un consentement se révoque sur le service principal, une permission configurée se supprime de l'app registration, et une identité se désactive ou se supprime.
+Retirer un accès demande d'identifier **par quel mécanisme il a été accordé**.
 
-Révoquer un consentement retire le droit d'obtenir un nouveau token, pas la validité des tokens déjà émis.
+- appartenance de groupe → retirer l'appartenance ;
+- role assignment Azure → modifier l'affectation RBAC ;
+- consentement d'application → révoquer le grant ;
+- permission configurée → modifier l'App Registration ;
+- identité → désactiver ou supprimer si c'est réellement le besoin.
 
-Le moindre privilège consiste à retirer ce qui n'est plus nécessaire, pas tout ce qui est retirable. Le membre interne a conservé son accès parce qu'il était justifié ; l'exercice aurait été raté si le groupe ou l'affectation de rôle avaient été supprimés.
+Révoquer un consentement retire le droit d'obtenir de nouveaux tokens avec ce grant, mais ne garantit pas la disparition immédiate de tous les access tokens déjà émis.
 
-Ce que ce lab montre en creux est la valeur de la gouvernance. Chacune de ces quatre opérations a été décidée à la main, justifiée à la main, et rien ne garantit qu'elle sera refaite dans six mois. C'est précisément ce que les access reviews et les access packages automatisent, et ce que l'édition Free ne permet pas de démontrer.
+Le moindre privilège consiste à retirer ce qui n'est plus nécessaire, pas tout ce qui est retirable. Le membre interne a conservé son accès parce qu'il était justifié ; l'exercice aurait été raté si le groupe ou l'affectation de rôle avaient été supprimés sans raison.
+
+Ce lab montre en creux la valeur de la gouvernance : ces décisions ont été prises manuellement. Access reviews, access packages et PIM servent précisément à rendre ce cycle plus explicite, révisable et temporaire lorsque les licences et le scénario le permettent.
 
 ## Lien avec l'examen
 
