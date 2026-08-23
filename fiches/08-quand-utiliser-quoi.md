@@ -1,126 +1,163 @@
 # Quand utiliser quoi
 
-Table de décision. Chaque ligne donne une réponse unique et la licence minimale qui la rend possible, puisqu'un énoncé mentionnant l'édition du tenant élimine à lui seul plusieurs distracteurs.
+Table de décision. Chaque ligne donne une réponse orientée examen et, quand c'est utile, le prérequis de licence. Les licences Microsoft Entra évoluent : éviter les raccourcis absolus quand Microsoft distingue désormais capacités historiques P2 et capacités avancées Governance.
 
-Sauf mention contraire, « Free » signifie que la fonctionnalité est incluse dans Microsoft Entra ID Free.
+Sauf mention contraire, « Free » signifie qu'aucune licence Entra Premium n'est requise pour le mécanisme de base.
 
 ## Identités et annuaire
 
-| Besoin | Réponse | Licence |
+| Besoin | Réponse | Licence / remarque |
 |---|---|---|
 | Peupler un groupe automatiquement selon un attribut utilisateur | Groupe dynamique, règle sur `user.*` | P1 |
 | Peupler un groupe automatiquement selon un attribut appareil | Groupe dynamique de type Device | P1 |
 | Attribuer des licences à une population qui évolue | Group-based licensing, avec `usageLocation` renseigné | P1 |
 | Attribuer un rôle Microsoft Entra à un groupe | Groupe role-assignable, à appartenance assignée uniquement | P1 |
-| Limiter un administrateur à une filiale ou une région | Administrative unit plus rôle Entra à portée d'AU | P1 par administrateur |
-| Empêcher les administrateurs à portée tenant de toucher aux comptes de direction | Restricted management administrative unit | P1 |
-| Un Global Administrator doit reprendre la main sur un abonnement Azure orphelin | Commutateur « Access management for Azure resources », qui accorde User Access Administrator à la portée `/` | Free |
+| Limiter un administrateur à une filiale ou une région | Administrative unit plus rôle Entra à portée d'AU | P1 selon scénario |
+| Empêcher les administrateurs à portée tenant de toucher aux comptes sensibles | Restricted management administrative unit | P1 selon scénario |
+| Un Global Administrator doit reprendre la main sur un abonnement Azure orphelin | « Access management for Azure resources », qui accorde User Access Administrator à la portée `/` | Free |
 | Donner un accès Azure à une équipe | Groupe de sécurité plus role assignment Azure RBAC à la bonne portée | Free |
-| Supprimer automatiquement les groupes Microsoft 365 inutilisés | Group expiration policy | P1 |
-| Imposer une convention de nommage aux groupes | Group naming policy | P1 |
+| Vérifier la propriété d'un custom domain | Enregistrement DNS **TXT** ou **MX** | Free |
+| Personnaliser l'écran de connexion | Company Branding | Selon édition / fonctionnalités disponibles |
+| Ajouter des métadonnées de sécurité personnalisées | Custom security attributes | Vérifier la licence du scénario |
+| Inviter beaucoup d'utilisateurs B2B | Bulk invite CSV / PowerShell | colonnes à reconnaître : `inviteeEmail`, `inviteRedirectUrl` |
+| Appareil personnel / BYOD connu par Entra | Microsoft Entra registered | Free |
+| Appareil d'entreprise cloud-first | Microsoft Entra joined | Free |
+| Appareil joint à AD DS local et présent dans Entra | Hybrid Microsoft Entra joined | Connect Sync pour la synchro appareil |
 
 ## Identités externes
 
-| Besoin | Réponse | Licence |
+| Besoin | Réponse | Licence / remarque |
 |---|---|---|
-| Faire collaborer un prestataire externe ponctuel | Invitation B2B, `UserType` égal à Guest | Free |
-| Empêcher les utilisateurs d'inviter n'importe qui | External collaboration settings, restriction des inviteurs et liste de domaines autorisés | Free |
+| Faire collaborer un prestataire externe ponctuel | Invitation B2B, `UserType=Guest` | Free |
+| Empêcher les utilisateurs d'inviter n'importe qui | External collaboration settings | Free |
 | Éviter que les partenaires refassent une MFA déjà faite chez eux | Cross-tenant access settings, trust settings sur la MFA | Free |
-| Accepter aussi le statut de conformité d'appareil du partenaire | Cross-tenant access settings, trust settings sur device compliant et hybrid joined | Free |
-| Faire apparaître automatiquement les utilisateurs d'un autre tenant du groupe | Cross-tenant synchronization, qui crée des external members | P1 |
+| Accepter aussi le statut de conformité d'appareil du partenaire | Cross-tenant access settings, trust settings device compliant / hybrid joined | Free |
+| Faire apparaître automatiquement les utilisateurs d'un autre tenant | Cross-tenant synchronization | P1 pour les capacités de base correspondantes |
 | Permettre à un externe sans compte Microsoft de se connecter | Email one-time passcode | Free |
-| Fédérer l'authentification des invités avec l'IdP du partenaire | Identity provider SAML ou WS-Fed dans External Identities | Free |
-| Nettoyer les comptes invités devenus inutiles, sans script | Access package avec expiration, la policy supprimant le compte s'il ne reste aucune assignment | Governance |
+| Fédérer l'authentification des invités avec l'IdP du partenaire | Identity provider SAML ou WS-Fed | Free pour le mécanisme de base |
+| Nettoyer les accès d'invités à l'expiration d'une assignment | Entitlement Management / access package | capacités historiques en P2, avancées en Governance |
 
 ## Identité hybride
 
-| Besoin | Réponse | Licence |
+| Besoin | Réponse | Licence / remarque |
 |---|---|---|
 | Synchroniser deux forêts sans relation d'approbation, après une fusion | Cloud Sync | Free |
 | Permettre le Hybrid Microsoft Entra join | Connect Sync, seul à synchroniser les appareils | Free |
 | Réduire la dépendance à l'infrastructure locale lors de la connexion cloud | Password Hash Synchronization | Free |
-| Ne stocker aucun dérivé de mot de passe dans le cloud | Pass-through Authentication, avec au moins trois agents | Free |
-| Alimenter la détection d'identifiants divulgués d'ID Protection | Password Hash Synchronization, condition nécessaire | P2 pour le contenu |
+| Valider le mot de passe en temps réel contre AD DS sans AD FS | Pass-through Authentication | Free |
+| Alimenter la détection d'identifiants divulgués d'ID Protection | Password Hash Synchronization | P2 pour l'exploitation complète du risque |
 | Permettre le self-service password reset en hybride | Password writeback | P1 |
 | Connexion silencieuse sur des postes joints au domaine Active Directory | Seamless SSO | Free |
 | Surveiller la santé des agents de synchronisation et d'AD FS | Microsoft Entra Connect Health | P1 |
+| Remplacer AD FS sans dépendance locale forte | PHS, éventuellement préparé en parallèle avant bascule | Free |
+| Garder validation AD DS au sign-in sans fédération | PTA + éventuellement Seamless SSO | Free |
 
 ## Identités de workload
 
-| Besoin | Réponse | Licence |
+| Besoin | Réponse | Licence / remarque |
 |---|---|---|
-| Un workload sur Azure doit accéder à une ressource sans secret stocké | Managed identity, system-assigned ou user-assigned | Free |
-| La même identité pour plusieurs ressources Azure, ou des droits à attribuer avant création | User-assigned managed identity | Free |
-| Un pipeline GitHub Actions, GitLab ou Kubernetes hors Azure doit accéder à Entra sans secret | Workload identity federation, federated credential sur l'app registration | Free |
-| Un démon doit lire l'annuaire sans utilisateur connecté | Permission applicative plus admin consent, flux client credentials avec scope `.default` | Free |
-| Une application agit au nom de l'utilisateur connecté | Permission déléguée | Free |
-| Consentir à un app role Microsoft Graph | Privileged Role Administrator ou Global Administrator, Application Administrator ne suffit pas | Free |
-| Restreindre l'accès à une enterprise application aux seules personnes affectées | `Assignment required` égal à Yes plus affectations | Free, mais P1 pour affecter des groupes |
-| Externaliser les rôles métier d'une application vers Entra | App roles, exposés dans le claim `roles` | Free |
-| Publier une application web interne accessible depuis n'importe quel navigateur | Application Proxy, préauthentification Microsoft Entra ID | P1 |
-| Donner accès à une ressource interne en RDP, SSH ou tout protocole TCP ou UDP | Microsoft Entra Private Access, avec client Global Secure Access | Entra Suite ou GSA |
-| Appliquer du Conditional Access à des service principals | Conditional Access for workload identities | Workload ID Premium |
-| Détecter un secret d'application divulgué | Risque sur identités de workload | Workload ID Premium |
-| Recertifier les applications détenant des permissions privilégiées | Access review d'identités de workload | Workload ID Premium |
+| Un workload Azure doit accéder à une ressource sans secret stocké | Managed identity | Free |
+| La même identité pour plusieurs ressources Azure | User-assigned managed identity | Free |
+| L'identité doit disparaître avec la ressource Azure | System-assigned managed identity | Free |
+| Pipeline GitHub Actions / GitLab / Kubernetes hors Azure sans secret | Workload identity federation | Free |
+| Démon sans utilisateur connecté | Permission applicative + admin consent + client credentials + `.default` | Free |
+| Application au nom de l'utilisateur connecté | Permission déléguée | Free |
+| Consentir à un app role Microsoft Graph | Privileged Role Administrator ou Global Administrator | Free |
+| Restreindre l'Enterprise Application aux seuls principals affectés | `Assignment required = Yes` | P1 pour certaines affectations par groupe |
+| Externaliser les rôles métier d'une application | App roles | Free |
+| Service Windows dépendant d'AD DS | Managed service account / gMSA | AD DS |
+| Publier une application web interne depuis un navigateur | Application Proxy + préauthentification Entra | P1 |
+| Donner accès à une ressource privée en RDP/SSH/TCP/UDP | Microsoft Entra Private Access + private network connector | licence GSA / Entra Suite selon offre |
+| Appliquer Conditional Access aux service principals | Conditional Access for workload identities | Workload ID Premium |
+| Surveiller le risque d'une workload identity | Workload identity risk | Workload ID Premium |
+
+## Enterprise applications et SaaS
+
+| Besoin | Réponse | Remarque |
+|---|---|---|
+| Configurer un SSO SaaS SAML | Enterprise Application > Single sign-on > SAML | Entity ID, Reply URL/ACS, claims, certificat |
+| Modifier le Name ID ou les claims SAML | Configuration SAML de l'Enterprise Application | pas API permissions |
+| Provisionner automatiquement utilisateurs vers SaaS | Provisioning SCIM | analyser avec Provisioning logs |
+| Savoir qui a modifié un mapping SCIM | Audit logs | « who changed » = audit |
+| Comprendre pourquoi un utilisateur n'a pas été provisionné | Provisioning logs | scope, mapping, statut, étapes |
+| Regrouper des applications pour la présentation | Application collections | ne remplace pas affectations / consentement |
 
 ## Authentification
 
-| Besoin | Réponse | Licence |
+| Besoin | Réponse | Licence / remarque |
 |---|---|---|
-| Amorcer une authentification sans mot de passe pour un nouvel arrivant | Temporary Access Pass, créé par un Authentication Administrator | Free |
-| N'accepter que des méthodes résistant au phishing sur une application sensible | Authentication strength « Phishing-resistant MFA » dans un grant control | P1 |
-| Imposer la MFA à tout le monde sans licence payante | Security Defaults, en sachant qu'ils excluent le Conditional Access | Free |
-| Exiger la MFA pour certains utilisateurs seulement | Policy Conditional Access | P1 |
-| Bloquer les mots de passe contenant le nom de l'entreprise, aussi dans l'Active Directory | Microsoft Entra Password Protection, liste personnalisée et agent DC | P1 |
-| Permettre aux utilisateurs de réinitialiser leur mot de passe | Self-service password reset | P1 pour les utilisateurs, Free pour les administrateurs |
-| Mesurer combien d'utilisateurs ont réellement enregistré une méthode forte | Rapport User registration details, Registration and reset activity | P1 |
+| Amorcer une authentification passwordless pour un nouvel arrivant | Temporary Access Pass | Free |
+| N'accepter que des méthodes résistantes au phishing | Authentication strength « Phishing-resistant MFA » | P1 avec CA |
+| Imposer la MFA largement sans licence premium | Security Defaults | Free |
+| Exiger la MFA pour certains utilisateurs seulement | Conditional Access | P1 |
+| Bloquer les mots de passe contenant le nom de l'entreprise, aussi dans AD DS | Microsoft Entra Password Protection + agent DC | P1 |
+| Permettre SSPR aux utilisateurs | Self-service password reset | dépend de l'édition / scénario, P1 notamment pour hybride |
+| Mesurer l'enregistrement réel des méthodes | User registration details / Registration and reset activity | vérifier l'édition |
+| CBA avec binding fort | X509SKI / Subject Key Identifier | CBA |
+| Windows Hello for Business hybride vers ressources Kerberos | Cloud Kerberos Trust / Microsoft Entra Kerberos | environnement hybride |
+| Révoquer les sessions d'un utilisateur | `Revoke-MgUserSignInSession` | Graph PowerShell |
+| Inciter les utilisateurs à enregistrer Authenticator | Registration campaign | ID Protection / Authentication Methods selon fonctionnalité |
 
 ## Conditional Access et risque
 
-| Besoin | Réponse | Licence |
+| Besoin | Réponse | Licence / remarque |
 |---|---|---|
-| Exiger un appareil conforme pour accéder à Exchange Online | Grant control « Require device to be marked as compliant » | P1 plus Intune |
-| Contrôler les téléchargements pendant une session SaaS | Session policy Defender for Cloud Apps, avec routage par Conditional Access App Control | P1 plus licence Defender |
-| Bloquer entièrement l'accès à une application SaaS non approuvée | Access policy Defender for Cloud Apps, également via Conditional Access App Control | P1 plus licence Defender |
-| Renforcer l'authentification uniquement pour une opération précise dans une application | Authentication context, ciblé dans Target resources | P1 |
-| Exiger une authentification renforcée pour modifier les policies Conditional Access elles-mêmes | Protected actions liées à un authentication context | P1 |
-| Couper la session d'un utilisateur désactivé sans attendre l'expiration du token | Continuous access evaluation, activée par défaut | P1 |
-| Rejeter un token présenté depuis une adresse IP non autorisée | Strict location enforcement de la CAE | P1 |
-| Vérifier qu'une connexion Microsoft 365 transite bien par le réseau de l'entreprise | Compliant network check, avec Internet Access for Microsoft 365 | Entra Suite ou GSA |
-| Mesurer l'effet d'une policy avant de l'activer | Mode report-only, puis classeur Conditional Access Insights and Reporting | P1 |
-| Tester le résultat pour un utilisateur donné sans connexion réelle | What If | P1 |
-| Exiger un changement de mot de passe quand un compte est probablement compromis | Policy CA sur le risque utilisateur | P2 |
-| Exiger une MFA quand une connexion précise est suspecte | Policy CA sur le risque de connexion | P2 |
+| Exiger un appareil conforme pour Exchange Online | Grant control « Require device to be marked as compliant » | P1 + solution de conformité |
+| Contrôler les téléchargements pendant une session SaaS | Session policy Defender for Cloud Apps via Conditional Access App Control | licences correspondantes |
+| Bloquer entièrement l'accès via Defender for Cloud Apps | Access policy via Conditional Access App Control | licences correspondantes |
+| Renforcer uniquement une opération précise | Authentication context | P1 |
+| Protéger la modification des policies Conditional Access | Protected actions + authentication context | P1 |
+| Compte désactivé, token non expiré, ressource compatible | CAE peut provoquer le rejet anticipé | **les critical events CAE ne se résument pas à “P1 obligatoire”** |
+| Rejeter un token hors emplacement autorisé avec évaluation réseau stricte | capacités CAE / Conditional Access correspondantes | P1 selon policy |
+| Vérifier qu'une connexion Microsoft 365 transite par le réseau attendu | Compliant network check / Internet Access for Microsoft 365 | GSA / Entra Suite selon offre |
+| Mesurer l'effet d'une policy avant activation | Report-only + CA Insights and Reporting | P1 |
+| Tester des policies sans vraie connexion | What If | P1 |
+| Exiger changement de mot de passe sur user risk | CA / ID Protection user risk | P2 |
+| Exiger MFA sur sign-in risk | CA / ID Protection sign-in risk | P2 |
+
+## Defender for Cloud Apps
+
+| Besoin | Réponse |
+|---|---|
+| Découvrir le Shadow IT | Cloud Discovery |
+| Évaluer le risque d'une application SaaS connue | Cloud App Catalog |
+| Connecter un service SaaS à Defender for Cloud Apps | Connected app / app connector |
+| Gouverner des applications OAuth à risque | OAuth app policies |
+| Contrôler la session en temps réel | Conditional Access App Control + session policy |
+| Autoriser / bloquer l'entrée via le proxy | Access policy |
+| Appliquer des restrictions natives de l'application selon appareil | Application-enforced restrictions |
 
 ## Gouvernance
 
-| Besoin | Réponse | Licence |
+| Besoin | Réponse | Licence / remarque |
 |---|---|---|
-| Permettre de demander un ensemble d'accès cohérent avec approbation et expiration | Access package dans Entitlement Management | Governance |
-| Déléguer à un responsable métier la création de packages sur son périmètre | Catalog délégué | Governance |
-| Cibler les utilisateurs d'une organisation partenaire dans une policy de demande | Connected organization | Governance |
-| Recertifier périodiquement l'appartenance à un groupe sensible | Access review, avec « Auto apply results » activé | P2 |
-| Retirer automatiquement les accès sur lesquels personne ne s'est prononcé | Access review, « If reviewers don't respond » égal à Remove access | P2 |
-| Recertifier les invités du tenant | Access review ciblant les utilisateurs invités | P2 |
-| Supprimer les privilèges permanents des administrateurs | PIM, affectations éligibles au lieu d'actives permanentes | P2 |
-| Exiger une approbation et un numéro de ticket à l'élévation | Role settings PIM, approbation et ticket information | P2 |
-| Imposer une MFA résistante au phishing au moment précis de l'élévation | Role settings PIM, authentication context Conditional Access à l'activation | P2 |
-| Rendre temporaire un accès applicatif distribué par un groupe | PIM for Groups, éligibilité à l'appartenance | P2 |
-| Automatiser la création du compte et l'envoi d'un TAP avant l'arrivée | Lifecycle Workflow Joiner, déclenché sur `employeeHireDate` | Governance |
-| Désactiver le compte et retirer les accès au départ | Lifecycle Workflow Leaver, déclenché sur `employeeLeaveDateTime` | Governance |
-| Garantir l'accès au tenant si une policy verrouille tous les administrateurs | Comptes break-glass, Global Administrator permanent hors PIM, exclus des policies CA, avec alerte sur usage | Free |
+| Demander un ensemble d'accès avec approbation et expiration | Access package / Entitlement Management | capacités historiques en P2 ; avancées en Governance |
+| Déléguer la construction de packages sur un périmètre | Catalog délégué | vérifier la capacité/licence précise |
+| Cibler une organisation partenaire | Connected organization | Entitlement Management |
+| Exiger l'acceptation d'un PDF avant l'accès | Terms of Use + Conditional Access | ToU dans le périmètre SC-300 |
+| Recertifier périodiquement un groupe sensible | Access review | P2 pour capacités historiques |
+| Retirer les accès si personne ne répond | Access review + `If reviewers don't respond = Remove access` | P2 |
+| Appliquer automatiquement les décisions | `Auto apply results to resource` | Access Review |
+| Appliquer manuellement les résultats | laisser Auto apply désactivé puis appliquer après review | Access Review |
+| Supprimer les privilèges permanents | PIM avec affectations éligibles | P2 |
+| Exiger approbation / ticket à l'élévation | PIM role settings | P2 |
+| MFA résistante au phishing au moment de l'élévation | PIM + authentication context CA | P2 + CA |
+| Rendre temporaire un accès distribué par un groupe | PIM for Groups | P2 / vérifier capacité précise |
+| Gouverner un rôle Azure RBAC temporairement | PIM for Azure resources | P2 |
+| Automatiser Joiner/Mover/Leaver | Lifecycle Workflows | Entra ID Governance, complément hors bullet explicite 2026 |
+| Garantir l'accès d'urgence | Break-glass cloud-only, GA disponible hors PIM, fortement surveillé | Free pour le principe |
 
 ## Supervision et diagnostic
 
-| Besoin | Réponse | Licence |
+| Besoin | Réponse | Remarque |
 |---|---|---|
-| Savoir si un utilisateur s'est connecté | Sign-in logs, onglet interactive ou non-interactive | Free |
-| Savoir si une application démon s'est authentifiée | Sign-in logs, onglet Service principal sign-ins | Free |
-| Savoir si une Azure Function a pu accéder au Key Vault | Sign-in logs, onglet Managed identity sign-ins | Free |
-| Savoir qui a créé ou supprimé un secret d'application | Audit logs, champ Initiated by | Free |
-| Savoir qui a modifié une policy Conditional Access | Audit logs | Free |
-| Comprendre pourquoi un compte n'apparaît pas dans une application SaaS | Provisioning logs, statut `Skipped` et étape de scope | Free |
-| Comprendre pourquoi une connexion a été bloquée | Sign-in diagnostic depuis l'événement, puis onglet Conditional Access | Free |
-| Conserver les logs plus de 30 jours | Diagnostic setting vers Log Analytics, storage account ou Event Hub | P1 |
-| Requêter les logs et construire des alertes | Log Analytics et KQL, éventuellement Microsoft Sentinel | P1 plus Log Analytics |
-| Évaluer la posture d'identité du tenant | Identity Secure Score, sans effet sur les accès | Free |
+| Savoir si un utilisateur s'est connecté | Sign-in logs interactive / non-interactive | choisir le bon onglet |
+| Application démon authentifiée | Service principal sign-ins | app-only avec SP |
+| Azure Function / VM via managed identity | Managed identity sign-ins | onglet distinct |
+| Qui a créé/supprimé un secret | Audit logs | champ Initiated by |
+| Qui a modifié Conditional Access | Audit logs | configuration |
+| Pourquoi un compte n'apparaît pas dans SaaS | Provisioning logs | souvent `Skipped` / scope |
+| Pourquoi une connexion est bloquée | Sign-in diagnostic puis onglet Conditional Access | lire code + policy |
+| Conserver les logs au-delà de la rétention native | Diagnostic settings vers Log Analytics / Storage / Event Hub | licence + coût de destination |
+| Requêter les logs | Log Analytics + KQL | éventuellement Sentinel |
+| Évaluer la posture d'identité | Identity Secure Score | ne bloque rien |
