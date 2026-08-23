@@ -1,160 +1,284 @@
 # Authentification et gestion des accès
 
-Domaine « Implement authentication and access management », 25 à 30 % de l'examen. C'est le domaine le plus lourd et celui qui concentre le plus de questions de scénario.
+Domaine « Implement authentication and access management », 25 à 30 % de l'examen. C'est le domaine le plus lourd en scénarios.
 
-La logique d'ensemble tient en trois couches. La **policy de méthodes d'authentification** décide de ce qu'un utilisateur a le droit d'utiliser pour prouver son identité. L'**authentication strength** décide de ce qui est assez fort dans un contexte donné. Le **Conditional Access** décide, à chaque connexion, s'il faut autoriser, renforcer ou bloquer, à partir des signaux disponibles.
+Le modèle mental tient en trois couches :
+
+1. **Authentication methods policy** : quelles méthodes les utilisateurs ont le droit d'utiliser ;
+2. **Authentication strength** : quelles combinaisons sont suffisamment fortes pour un accès donné ;
+3. **Conditional Access** : dans quel contexte autoriser, renforcer ou bloquer l'accès.
 
 ## Méthodes d'authentification
 
-La configuration se fait dans Protection puis Authentication methods puis Policies. Pour chaque méthode, on active ou désactive, on cible des utilisateurs ou des groupes, on exclut, et on règle des options propres à la méthode.
-
-| Méthode | Résiste au phishing | Remarque |
+| Méthode | Phishing-resistant ? | À retenir |
 |---|---|---|
-| Passkey FIDO2 | Oui | Clé matérielle ou passkey dans Microsoft Authenticator |
-| Windows Hello Entreprise | Oui | Lié à l'appareil |
-| Certificate-based authentication | Oui | Authentification directe par certificat X.509, sans fédération |
-| Microsoft Authenticator | Non | Number matching et contexte imposés depuis mai 2023 |
-| Temporary Access Pass | Non | Credential d'amorçage, durée limitée |
-| OATH hardware et software token | Non | Code à 6 chiffres, 30 secondes |
-| SMS et appel vocal | Non | À éviter, interceptable |
-| Mot de passe | Non | Ne se désactive pas, se contourne |
+| Passkey / FIDO2 | Oui | clé matérielle ou passkey prise en charge |
+| Windows Hello for Business | Oui | clé liée à l'appareil, pas simple mot de passe local |
+| Certificate-based authentication | Oui | certificat X.509 directement avec Entra |
+| Microsoft Authenticator | Pas toujours | MFA / passwordless selon mode |
+| Temporary Access Pass | Non | credential temporaire d'amorçage / recovery |
+| OATH | Non | OTP |
+| SMS / voice | Non | méthode faible |
+| Password | Non | facteur de connaissance |
 
-Deux points d'actualité que l'examen teste depuis la révision d'avril 2026 :
-
-La gestion des méthodes a été **centralisée**. Les anciens écrans « legacy MFA settings » et l'onglet de méthodes de la policy SSPR ne servent plus à gérer les méthodes. Le portail expose un contrôle **Manage migration** avec trois états : Pre-migration, Migration in progress, Migration complete. Tant que la migration n'est pas terminée, les deux configurations coexistent et la policy moderne l'emporte sur les méthodes qu'elle gère explicitement.
-
-Une méthode activée pour un utilisateur ne signifie pas qu'il l'a enregistrée. L'écart entre le périmètre autorisé et le périmètre réellement enregistré se lit dans Authentication methods puis **Registration and reset activity** et dans le rapport **User registration details**. C'est là qu'on identifie les utilisateurs qui ne pourront pas satisfaire une future exigence de MFA résistante au phishing.
+Autoriser une méthode ne signifie pas que l'utilisateur l'a enregistrée. Les rapports d'enregistrement servent à mesurer le décalage entre méthode **autorisée** et méthode **réellement enregistrée**.
 
 ### Temporary Access Pass
 
-Un TAP est un code temporaire à durée de vie limitée qui permet de s'authentifier sans mot de passe et sans méthode déjà enregistrée. Il sert à l'onboarding, à l'amorçage d'une méthode passwordless, et à la récupération quand l'utilisateur a perdu son téléphone ou sa clé.
+Un TAP est créé par un administrateur pour un autre utilisateur afin d'amorcer une méthode passwordless ou de récupérer l'accès.
 
-Ce que l'examen vérifie :
+À retenir :
 
-Il est créé **par un administrateur pour un autre utilisateur**, jamais pour soi-même. Le rôle requis est Authentication Administrator pour les comptes non-administrateurs, ou Privileged Authentication Administrator pour agir aussi sur les comptes administrateurs. Global Administrator convient également.
+- Authentication Administrator pour les utilisateurs standards ;
+- Privileged Authentication Administrator pour agir sur certains comptes administrateurs ;
+- durée limitée ;
+- configuration one-time / multi-use selon la policy et le pass ;
+- peut satisfaire une exigence MFA, mais n'est pas pour autant une méthode phishing-resistant.
 
-Le caractère à usage unique se décide **à la création de chaque pass**, via `isUsableOnce`. La policy ne fait que plafonner ce choix : tant que son réglage One-time use reste à False, l'administrateur peut créer indifféremment un pass à usage unique ou multiple ; dès que la policy passe à True, tous les pass deviennent obligatoirement à usage unique.
+### Certificate-Based Authentication et high-affinity binding
 
-La policy fixe aussi la durée de vie minimale et maximale (de 10 minutes à 30 jours, 1 heure par défaut) et le délai avant activation.
+CBA permet de s'authentifier directement avec un certificat X.509.
 
-Un TAP satisfait l'exigence de MFA, ce qui permet à son porteur d'enregistrer une méthode dans un tenant qui exige la MFA pour l'enregistrement. En revanche il ne satisfait aucune authentication strength résistante au phishing, et un utilisateur ne peut pas s'en servir pour changer son mot de passe via le self-service password reset.
+L'examen peut tester le **binding** entre certificat et utilisateur. Pour un binding à forte affinité, reconnaître notamment :
 
-### Self-service password reset et protection des mots de passe
+> **X509SKI / Subject Key Identifier (SKI)**
 
-Le SSPR se règle dans Protection puis Password reset. On y définit le périmètre (personne, un groupe, tout le monde), le nombre de méthodes requises pour la réinitialisation, et l'exigence ou non de réenregistrement périodique. En environnement hybride, le password writeback est indispensable pour que la réinitialisation redescende dans l'Active Directory local.
+Ce type d'identifiant lie plus fortement le certificat / la clé à l'identité qu'une correspondance générique basée uniquement sur un nom.
 
-Microsoft Entra Password Protection bloque les mots de passe faibles à partir d'une liste globale gérée par Microsoft et d'une **liste personnalisée** d'au plus 1 000 termes propres à l'organisation. Déployée en local via un agent sur les contrôleurs de domaine, elle applique les mêmes règles aux changements effectués dans l'Active Directory. Le mode audit permet de mesurer l'impact avant application. La fonctionnalité exige Microsoft Entra ID P1.
+### Windows Hello for Business
 
-### Authentication strength
+Windows Hello for Business utilise une paire de clés liée à l'appareil. Le PIN ou la biométrie sert localement à déverrouiller la clé ; ce n'est pas le secret transmis à distance comme un mot de passe.
 
-Une authentication strength est un ensemble nommé de combinaisons de méthodes considérées comme suffisantes. Microsoft en fournit trois intégrées : Multifactor authentication, Passwordless MFA, et Phishing-resistant MFA. On peut en créer des personnalisées.
+En environnement hybride, **Cloud Kerberos Trust** permet à un utilisateur Windows Hello for Business d'accéder à des ressources AD DS protégées par Kerberos sans déployer le modèle plus lourd de certificate trust.
 
-La distinction à tenir : la policy de méthodes définit ce qui est **disponible** dans le tenant, l'authentication strength définit ce qui est **acceptable** pour un accès donné. Une strength qui exige une méthode non activée dans la policy rend l'accès impossible.
+À reconnaître :
 
-Dans une policy Conditional Access, « Require authentication strength » et « Require multifactor authentication » sont **mutuellement exclusifs** : le portail interdit de cocher les deux dans la même policy.
+```text
+Windows Hello for Business + accès Kerberos on-prem
+→ Cloud Kerberos Trust
+→ Microsoft Entra Kerberos
+```
+
+### Registration campaigns
+
+Les registration campaigns poussent les utilisateurs ciblés à enregistrer une méthode moderne. Elles ne remplacent pas la methods policy : l'une autorise / cible, l'autre aide à faire réellement enregistrer la méthode.
+
+## SSPR et Password Protection
+
+Self-service password reset permet aux utilisateurs autorisés de réinitialiser leur mot de passe selon les méthodes/configurations disponibles.
+
+En environnement hybride, **password writeback** permet de répercuter le changement vers AD DS dans les scénarios pris en charge.
+
+Microsoft Entra Password Protection combine une liste globale gérée par Microsoft et une liste personnalisée. Avec les composants on-premises appropriés, les contrôles peuvent aussi protéger les changements de mot de passe AD DS.
+
+## Authentication strength
+
+Une authentication strength décrit les combinaisons de méthodes jugées suffisantes.
+
+Raccourci :
+
+```text
+Methods policy
+= ce que l'utilisateur peut utiliser
+
+Authentication strength
+= ce qui est accepté pour CET accès
+```
+
+Exemple : une application très sensible peut exiger une strength **Phishing-resistant MFA**.
+
+## Désactiver un compte et révoquer des sessions
+
+Désactiver un compte empêche les nouvelles authentifications, mais il faut distinguer cela de la validité de tokens déjà émis.
+
+Pour révoquer les sessions utilisateur avec Microsoft Graph PowerShell, la commande à reconnaître est :
+
+```powershell
+Revoke-MgUserSignInSession -UserId <id>
+```
+
+La révocation des sessions agit sur la capacité à renouveler / continuer les sessions selon le mécanisme. Elle ne doit pas être décrite comme une suppression magique de tous les JWT déjà remis.
+
+Avec **Continuous Access Evaluation**, certaines ressources et certains clients compatibles peuvent réagir à des événements critiques, comme la désactivation d'un compte, et rejeter un access token avant son expiration normale.
 
 ## Conditional Access
 
-C'est le moteur de décision. À chaque tentative d'accès, il évalue les policies applicables et rend une décision.
+Conditional Access est le moteur de décision contextuel.
 
-### Structure réelle d'une policy
+### Structure d'une policy
 
-Le découpage du portail est le suivant, et le confondre coûte des points.
+**Assignments** :
 
-**Assignments** contient quatre blocs : Users, Target resources, Network et Conditions.
+- Users / workload identities selon scénario ;
+- Target resources ;
+- Network ;
+- Conditions comme device platform, client apps, risk, device state, authentication flows.
 
-- *Users* cible des utilisateurs, des groupes, des rôles d'annuaire, des invités et utilisateurs externes par type, ou des workload identities.
-- *Target resources* cible des applications cloud, des actions utilisateur (enregistrement d'une méthode, jonction d'appareil), ou un **authentication context**.
-- *Network* cible des emplacements réseau. Il a été sorti du bloc Conditions et vit désormais à part, ce qui permet de le combiner avec Global Secure Access.
-- *Conditions* regroupe le reste : risque utilisateur, risque de connexion, risque interne, plateforme d'appareil, applications clientes, état de l'appareil, flux d'authentification.
+**Access controls** :
 
-**Access controls** contient deux blocs : Grant et Session.
+- Grant ;
+- Session.
 
-*Grant* décide d'accorder ou de bloquer, et sous quelle condition : MFA, appareil marqué conforme, appareil hybrid joined, application cliente approuvée, application protégée par une app protection policy, changement de mot de passe, ou authentication strength. Quand plusieurs contrôles sont cochés, on choisit « Require all » ou « Require one ».
+### Grant controls
 
-*Session* agit après l'octroi : sign-in frequency, persistent browser session, **continuous access evaluation**, Conditional Access App Control (routage vers Defender for Cloud Apps), restrictions imposées par l'application, protection du token, et désactivation des valeurs par défaut de résilience.
+Ils déterminent ce qui doit être satisfait pour obtenir l'accès, par exemple :
 
-La MFA est donc un **grant control**, jamais une condition. Une condition décrit le contexte, un grant control décrit l'exigence.
+- require MFA ;
+- require authentication strength ;
+- require compliant device ;
+- require hybrid joined device ;
+- block access.
 
-### Continuous access evaluation
+La MFA est donc un **grant control**, pas une condition.
 
-Sans CAE, un access token reste valide jusqu'à son expiration, environ une heure, même si l'utilisateur est désactivé entre-temps. La CAE fait dialoguer Entra et les ressources compatibles (Exchange Online, SharePoint Online, Teams, Microsoft Graph) pour révoquer une session quasi immédiatement sur des événements critiques : compte désactivé ou supprimé, mot de passe modifié, révocation explicite des tokens, risque utilisateur élevé détecté, ou changement d'emplacement réseau quand la policy le prévoit.
+### Session controls
 
-Elle est activée par défaut. Le réglage dans la policy CA sert principalement à la désactiver pour dépannage, ou à activer le **strict location enforcement**, qui rejette un token présenté depuis une adresse IP hors des emplacements autorisés.
+Ils agissent après l'octroi :
 
-### Authentication context et protected actions
+- sign-in frequency ;
+- persistent browser session ;
+- Conditional Access App Control ;
+- contrôles de token / session pris en charge ;
+- comportements liés à CAE selon configuration.
 
-Un **authentication context** permet d'appliquer une policy CA à une opération précise plutôt qu'à une application entière. On définit un contexte (par exemple `c1`, « Données financières »), on l'assigne comme cible d'une policy CA exigeant par exemple une MFA résistante au phishing, puis une application, un site SharePoint étiqueté, ou une opération Entra s'y rattache. Le reste de l'application reste soumis aux règles normales.
+### Report-only et What If
 
-Les **protected actions** appliquent ce mécanisme aux opérations d'administration d'Entra elles-mêmes. On lie un authentication context à des permissions précises, par exemple la mise à jour des policies Conditional Access ou la suppression d'un rôle, de sorte qu'un administrateur déjà connecté doive satisfaire une exigence renforcée avant d'exécuter cette opération. C'est la réponse attendue quand un scénario demande de protéger la modification des policies CA sans exiger davantage pour le reste de l'administration.
+**Report-only** évalue la policy sans la faire bloquer réellement. Les résultats sont visibles dans les logs et les outils de reporting.
 
-### Déploiement et validation
+**What If** simule quelles policies s'appliqueraient à un scénario donné sans imposer une connexion réelle.
 
-**Report-only** évalue la policy et journalise le résultat sans l'appliquer. C'est le passage obligé avant toute mise en production. Les résultats se lisent dans l'onglet Conditional Access d'un log de connexion, et dans le classeur Conditional Access Insights and Reporting.
+### Templates
 
-**What If** simule le résultat d'un ensemble de signaux fournis à la main, sans connexion réelle.
+Les templates accélèrent le déploiement de policies recommandées. Ils ne dispensent pas de vérifier le ciblage, les exclusions et l'impact avant activation.
 
-Les **templates** fournissent seize policies préconfigurées couvrant les scénarios recommandés (MFA pour les administrateurs, blocage de l'authentification héritée, exigence d'appareil conforme). Ils se créent directement en report-only.
+### Device-enforced restrictions
 
-Enfin, une policy CA ne peut coexister avec les **Security Defaults**. Ce n'est pas une nuance de vocabulaire mais une contrainte technique : tant que les Security Defaults sont activés, la création d'une policy CA est refusée, et il faut les désactiver dans Microsoft Entra ID puis Properties puis Manage security defaults pour basculer. Les Security Defaults sont gratuits et imposent la MFA à tous ; le Conditional Access exige P1 et permet le ciblage.
+Le study guide nomme explicitement les restrictions appliquées par l'application selon le contexte de l'appareil.
+
+Ne pas confondre :
+
+- **require compliant device** = condition d'octroi ;
+- **application-enforced/device-enforced restriction** = accès éventuellement accordé mais expérience limitée sur l'appareil ;
+- **Defender for Cloud Apps session policy** = contrôle via reverse proxy pendant la session.
+
+### Continuous Access Evaluation
+
+CAE permet à Entra et aux ressources compatibles de réagir à certains événements sans attendre uniquement l'expiration normale du token.
+
+Exemples d'événements critiques selon prise en charge :
+
+- compte désactivé ou supprimé ;
+- changement / réinitialisation de mot de passe selon scénario ;
+- révocation de sessions ;
+- certains changements de risque / localisation selon ressource et policy.
+
+Important : **CAE n'est pas un mécanisme universel pour tous les tokens et toutes les ressources**, et les critical events CAE ne doivent pas être résumés au vieux raccourci « nécessite forcément P1 ».
+
+### Authentication context
+
+Permet d'appliquer une exigence CA à une opération ou zone sensible précise plutôt qu'à toute l'application.
+
+### Protected actions
+
+Appliquent un authentication context à certaines opérations d'administration Entra, par exemple protéger la modification de policies sensibles par une authentification renforcée au moment précis de l'action.
+
+### Security Defaults vs Conditional Access
+
+Security Defaults fournit une protection globale simple. Conditional Access fournit du ciblage et des contrôles détaillés.
+
+Dans un tenant qui veut gérer ses propres policies CA, il faut traiter explicitement Security Defaults au lieu de supposer que les deux mécanismes forment deux couches indépendantes et configurables en parallèle.
 
 ## Microsoft Entra ID Protection
 
-Le nom officiel est bien Microsoft Entra ID Protection. Le produit calcule et expose du risque.
+### User risk
 
-**Le risque utilisateur** évalue la probabilité que le compte lui-même soit compromis, à partir de signaux persistants comme des identifiants retrouvés dans une fuite ou une activité anormale cumulée.
+Probabilité que **l'identité elle-même** soit compromise.
 
-**Le risque de connexion** évalue la probabilité qu'une tentative précise ne soit pas légitime : voyage impossible, adresse IP anonyme, propriétés de connexion inhabituelles, adresse liée à un logiciel malveillant.
+### Sign-in risk
 
-**Les risk detections** sont les événements individuels qui alimentent ces deux scores. Certaines sont calculées en temps réel et peuvent bloquer la connexion en cours, d'autres hors ligne et n'apparaissent qu'après coup.
+Probabilité qu'**une tentative de connexion précise** soit illégitime.
 
-Trois rapports servent au suivi : Risky users, Risky sign-ins et Risk detections. Un administrateur peut confirmer une compromission, ce qui force le risque à High et alimente l'apprentissage, ou rejeter le risque, ce qui le remet à zéro.
+### Risk detections
 
-Les licences sont le principal discriminant sur ce sujet :
+Événements individuels qui alimentent le risque, avec calcul en temps réel ou hors ligne selon le type.
 
-| Capacité | Licence |
-|---|---|
-| Voir que des utilisateurs et connexions sont à risque, sans détail | Free |
-| Rapports détaillés, niveau de risque, remédiation en libre-service | P2 |
-| Policies de risque utilisateur et de risque de connexion, y compris portées par CA | P2 |
-| Exporter les risk detections vers Log Analytics ou Sentinel | P1 pour l'export, P2 pour le contenu |
+Les trois vues à reconnaître :
 
-La bonne pratique actuelle est de porter les exigences de risque dans des policies Conditional Access plutôt que dans les policies héritées d'ID Protection, ce qui permet de combiner le risque avec les autres signaux.
+- Risky users ;
+- Risky sign-ins ;
+- Risk detections.
+
+Les policies avancées basées sur user risk / sign-in risk et la remédiation détaillée relèvent de Microsoft Entra ID P2.
 
 ## Defender for Cloud Apps
 
-Defender for Cloud Apps apporte la visibilité sur l'usage des applications cloud et le contrôle en temps réel des sessions.
+Defender for Cloud Apps apporte découverte, classification et contrôle des applications cloud.
 
-Une **access policy** décide si l'accès à l'application est autorisé ou bloqué. Une **session policy** contrôle ce que l'utilisateur peut faire pendant la session : bloquer un téléchargement, appliquer une étiquette de confidentialité à un fichier téléchargé, bloquer un copier-coller ou une impression, surveiller sans bloquer.
+### Cloud Discovery
 
-Le prérequis vaut pour les deux et il est régulièrement testé : l'application doit être routée vers le reverse proxy de Defender for Cloud Apps par une policy **Conditional Access** dont le session control est **Conditional Access App Control**. Sans ce routage, aucune des deux familles de policies ne s'applique. Conditional Access App Control n'est donc pas réservé aux session policies : c'est le canal commun.
+Identifie l'usage réel des applications cloud et le **Shadow IT**.
+
+### Cloud App Catalog
+
+Catalogue les applications cloud et fournit des informations / scores de risque.
+
+### Connected apps
+
+Connecte Defender for Cloud Apps à des services SaaS pris en charge pour obtenir de la visibilité et appliquer certaines fonctions de gouvernance.
+
+### Application-enforced restrictions
+
+Certaines applications peuvent appliquer des restrictions selon les signaux Conditional Access et l'état de l'appareil.
+
+### Conditional Access App Control
+
+Route la session vers le reverse proxy de Defender for Cloud Apps pour contrôle en temps réel.
+
+- **Access policy** : autoriser ou bloquer l'entrée ;
+- **Session policy** : contrôler les actions pendant la session, par exemple téléchargement, copie ou impression.
+
+### OAuth app policies
+
+Gouvernent les applications OAuth connectées, notamment selon permissions et niveau de risque.
+
+Ne pas confondre avec Conditional Access, qui décide de l'accès d'une identité à une ressource.
 
 ## Global Secure Access
 
-Global Secure Access est le volet Security Service Edge de Microsoft Entra. Il est apparu dans les compétences mesurées et comporte quatre volets.
+Global Secure Access regroupe notamment Microsoft Entra Private Access et Internet Access.
 
-Le **client Global Secure Access** s'installe sur Windows, macOS, iOS et Android et capture le trafic à destination des profils de transfert configurés. Un déploiement sans client est possible pour des réseaux distants via un tunnel IPsec depuis l'équipement de bordure.
+### Global Secure Access client
 
-**Microsoft Entra Private Access** publie des applications privées, sur site ou dans un cloud privé, sans exposer le réseau. Le trafic passe par un **private network connector** installé à proximité de la ressource, qui n'ouvre que des connexions sortantes. Contrairement à un VPN, l'accès est accordé application par application et non au réseau entier, et chaque application publiée peut porter ses propres policies Conditional Access. C'est le successeur fonctionnel du proxy d'application, dont il partage le connecteur, avec deux différences majeures : Private Access couvre tous les protocoles TCP et UDP et pas seulement HTTP et HTTPS, et il ne publie pas d'URL sur Internet.
+Le client capture le trafic concerné selon les profils de forwarding sur les plateformes prises en charge.
 
-**Microsoft Entra Internet Access** sécurise le trafic sortant vers Internet, avec du filtrage web par catégorie et par nom de domaine, et applique le Conditional Access au trafic réseau lui-même.
+### Microsoft Entra Private Access
 
-**Microsoft Entra Internet Access for Microsoft 365** traite spécifiquement le trafic Microsoft 365 et permet le **compliant network check**, un contrôle Conditional Access qui vérifie que la connexion transite bien par le réseau Microsoft, ce qui bloque le vol de token présenté depuis ailleurs.
+Publie des applications privées sans exposer directement le réseau. Le **private network connector** se place près de la ressource et établit des connexions sortantes.
 
-Les emplacements réseau de Global Secure Access s'utilisent directement dans le bloc Network d'une policy Conditional Access.
+Différence avec VPN : accès **application par application** au lieu de donner une connectivité réseau large.
+
+### Microsoft Entra Internet Access
+
+Protège / contrôle le trafic sortant Internet selon les fonctionnalités et licences activées.
+
+### Microsoft 365 traffic
+
+Des fonctions dédiées au trafic Microsoft 365 permettent d'intégrer les signaux réseau à Conditional Access, par exemple des contrôles vérifiant que le trafic transite par le chemin attendu.
 
 ## Ce qui se joue sur des détails
 
-La MFA est un grant control, pas une condition, et elle ne peut pas être cochée en même temps qu'une authentication strength.
-
-L'emplacement réseau n'est plus une condition dans le portail actuel : c'est un bloc à part dans Assignments.
-
-Les Security Defaults et le Conditional Access s'excluent techniquement, ce n'est pas une simple recommandation.
-
-Un TAP est créé par un administrateur pour quelqu'un d'autre, et son caractère à usage unique se décide pass par pass, pas seulement dans la policy.
-
-Une session policy Defender for Cloud Apps ne fonctionne que si une policy Conditional Access route l'application via Conditional Access App Control.
-
-Les policies de risque exigent P2. Un énoncé qui mentionne un tenant en P1 élimine toute réponse fondée sur le risque utilisateur ou le risque de connexion.
-
-Le résultat « MFA requirement satisfied by claim in the token » dans un log signifie que l'exigence a été satisfaite par un claim déjà présent : aucune nouvelle MFA n'a été demandée à l'utilisateur pour cet événement.
+- Methods policy = méthode disponible ; authentication strength = méthode acceptable.
+- CBA high-affinity -> **X509SKI / SKI**.
+- WHfB hybride + Kerberos -> **Cloud Kerberos Trust**.
+- Révoquer sessions utilisateur -> `Revoke-MgUserSignInSession`.
+- MFA = grant control.
+- Report-only != What If.
+- Device-enforced restriction != require compliant device.
+- CAE peut rejeter un token avant `exp` sur scénarios compatibles, mais n'efface pas tous les tokens universellement.
+- User risk = compte ; sign-in risk = tentative.
+- Cloud Discovery = Shadow IT.
+- Cloud App Catalog = score / informations sur applications cloud.
+- OAuth app policy = gouvernance des apps OAuth.
+- Access policy = entrer ou non ; session policy = comportement pendant la session.
+- Private Access = application privée + private network connector, pas VPN réseau complet.
+- `MFA requirement satisfied by claim in the token` signifie qu'aucune nouvelle MFA n'a nécessairement été demandée pour cet événement.

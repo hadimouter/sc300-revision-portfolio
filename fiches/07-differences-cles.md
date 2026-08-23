@@ -1,205 +1,311 @@
 # Différences clés
 
-Chaque entrée oppose deux notions que l'examen confond volontiers, en donnant le critère qui tranche et la façon dont la question est habituellement posée.
+Chaque entrée oppose deux notions que l'examen confond volontiers, avec le critère qui tranche.
 
 ## App registration et enterprise application
 
-Ce sont deux vues sur deux objets différents, pas deux vues sur le même objet.
+App registrations manipule l'**application object**, c'est-à-dire la définition : URI de redirection, credentials, API permissions, API exposée, app roles.
 
-App registrations manipule l'application object, c'est-à-dire la définition : URI de redirection sous Authentication, secrets et certificats, permissions demandées, API exposée, app roles. Enterprise applications manipule le service principal, c'est-à-dire l'instance locale : affectations d'utilisateurs et de groupes, single sign-on, provisioning, permissions consenties, connexions du principal.
+Enterprise applications manipule le **service principal**, l'instance locale : affectations, SSO, provisioning, consentements et propriétés propres au tenant.
 
-Ce qui tranche : même Client ID, Object ID différents. Une application multi-tenant a un application object et autant de service principals que de tenants clients.
-
-Formulation typique : « où configurez-vous les URI de redirection » ou « où affectez-vous des utilisateurs à l'application ».
+Ce qui tranche : même Client ID, Object ID différents.
 
 ## Permission déléguée et permission applicative
 
-La délégation fait agir l'application au nom d'un utilisateur ; l'applicative la fait agir seule.
+La permission déléguée fait agir l'application **au nom d'un utilisateur connecté**. La permission applicative fait agir l'application **avec sa propre identité**, sans utilisateur.
 
-Ce qui tranche vraiment n'est pas le claim mais la portée effective. En délégué, les droits sont l'**intersection** des permissions de l'application et de ceux de l'utilisateur : une permission `User.ReadWrite.All` déléguée portée par un utilisateur sans droit d'écriture ne donne rien. En applicatif, la permission s'applique à tout le tenant, sans garde-fou. C'est la raison pour laquelle les app roles Microsoft Graph exigent Privileged Role Administrator et non Application Administrator.
-
-Formulation typique : « without a signed-in user » impose l'applicative, « on behalf of the signed-in user » impose la déléguée.
+Ce qui tranche : `without a signed-in user` impose l'applicative ; `on behalf of the signed-in user` impose la déléguée.
 
 ## Claim `scp` et claim `roles`
 
-`scp` n'apparaît que dans les tokens délégués. `roles` apparaît dans les tokens app-only, où il porte les permissions applicatives, **et** dans les tokens utilisateur, où il porte les app roles métier assignés à l'utilisateur ou à ses groupes.
+`scp` porte les permissions API déléguées.
 
-Ce qui tranche : le claim `idtyp` valant `app` identifie un token app-only. La seule présence de `roles` ne prouve rien.
+`roles` peut porter les permissions applicatives d'un token app-only **ou** des app roles métier dans un token utilisateur.
+
+Ce qui tranche : `idtyp=app` identifie fiablement un token app-only. La présence de `roles` seule ne suffit pas.
 
 ## Assignment required et admin consent
 
-Assignment required contrôle **qui peut obtenir un token** pour l'application. Le consentement contrôle **ce que l'application a le droit de faire** sur une API.
+Assignment required contrôle **qui peut accéder / obtenir un token pour l'application selon les affectations**.
 
-Les deux sont indépendants dans un sens : affecter un utilisateur ne consent à rien. Dans l'autre sens il existe un lien, souvent oublié : dès qu'une application exige l'affectation, le consentement utilisateur en libre-service ne suffit plus à débloquer l'accès, puisque l'absence d'affectation bloque en amont.
+Le consentement contrôle **ce que l'application peut faire sur une API**.
 
-Ce qui tranche : l'affectation par groupe exige P1, l'affectation individuelle non.
+Affecter un utilisateur ne consent à rien. Consentir à une permission ne remplace pas l'affectation si `Assignment required = Yes`.
 
 ## Managed identity et workload identity federation
 
-Les deux suppriment le secret. La localisation du workload décide.
+Les deux évitent le secret applicatif classique.
 
-Une managed identity ne fonctionne que pour un workload qui tourne **sur Azure**, puisque c'est la plateforme Azure qui fournit le jeton. Une workload identity federation couvre tout workload disposant d'un IdP émettant des jetons OIDC : GitHub Actions, GitLab, Kubernetes hors AKS, un autre cloud, un serveur sur site.
+Une managed identity est fournie par Azure pour les ressources prises en charge. La workload identity federation convient à un workload qui présente un jeton d'un IdP externe, par exemple GitHub Actions ou Kubernetes.
 
-Formulation typique : un pipeline GitHub Actions qui doit déployer sur Azure sans secret attend la federation, pas la managed identity.
+Ce qui tranche : workload Azure -> managed identity ; workload hors Azure avec OIDC -> federation.
+
+## Managed identity et managed service account
+
+Une **managed identity** est une identité de workload Azure représentée dans Entra par un service principal, sans credential à gérer par l'application.
+
+Un **managed service account / gMSA** est un compte de service Windows géré par AD DS, avec gestion automatisée du mot de passe.
+
+Ce qui tranche : service Windows dépendant d'AD DS -> MSA/gMSA ; workload Azure -> managed identity.
 
 ## Managed identity system-assigned et user-assigned
 
-La system-assigned naît et meurt avec la ressource, et ne sert qu'à elle. La user-assigned est une ressource Azure autonome, partageable entre plusieurs workloads, et survit à leur suppression.
+La system-assigned naît et meurt avec une ressource Azure.
 
-Ce qui tranche : « la même identité pour plusieurs ressources » ou « attribuer les droits avant de créer la ressource » imposent la user-assigned. « L'identité doit disparaître avec la ressource » impose la system-assigned.
+La user-assigned est une ressource autonome, réutilisable par plusieurs workloads et indépendante de leur cycle de vie.
+
+Ce qui tranche : même identité pour plusieurs ressources -> user-assigned ; identité qui doit disparaître avec la ressource -> system-assigned.
 
 ## Application Proxy et Microsoft Entra Private Access
 
-Les deux publient des ressources internes via le même private network connector, sans ouvrir de port entrant.
+Application Proxy publie une application web interne, principalement HTTP/HTTPS, vers un navigateur.
 
-Le proxy d'application publie une **URL web** accessible depuis n'importe quel navigateur, en HTTP et HTTPS uniquement. Private Access donne accès à des applications privées **tous protocoles TCP et UDP**, sans publier d'URL, et exige un client Global Secure Access sur le poste.
+Private Access donne un accès Zero Trust à des applications privées sur des protocoles plus larges, avec le client Global Secure Access et un private network connector.
 
-Ce qui tranche : le protocole et la présence d'un client. Un besoin de RDP ou SSH exclut le proxy d'application. Un besoin d'accès depuis un navigateur non équipé exclut Private Access.
+Ce qui tranche : URL web accessible depuis un navigateur -> Application Proxy ; RDP/SSH/TCP/UDP privé -> Private Access.
 
 ## Private Access et VPN
 
-Un VPN place le poste sur le réseau et lui donne, par défaut, la visibilité de ce réseau. Private Access accorde l'accès **application par application**, chaque application publiée pouvant porter ses propres policies Conditional Access, et ne donne aucune visibilité sur le reste.
+Un VPN donne typiquement une connectivité réseau plus large.
 
-Ce qui tranche : la granularité de l'accès et la capacité d'appliquer du Conditional Access par application.
+Private Access accorde un accès **application par application** et s'intègre au Conditional Access.
+
+Ce qui tranche : accès au réseau vs accès ciblé à l'application.
+
+## SAML SSO et API permissions OAuth
+
+Le SSO SAML concerne l'authentification vers une application SaaS : Entity ID, Reply URL/ACS, Name ID, claims, certificat de signature.
+
+Les API permissions OAuth concernent l'autorisation d'une application à appeler une API.
+
+Ce qui tranche : modifier le Name ID ou les claims de connexion -> Enterprise Application > Single sign-on ; donner `User.Read.All` -> App Registration > API permissions.
+
+## SCIM provisioning et SSO
+
+Le SSO permet à l'utilisateur de se connecter à l'application.
+
+SCIM automatise la création, mise à jour, désactivation ou suppression des comptes dans l'application cible.
+
+Ce qui tranche : problème de login -> sign-in / SSO ; compte absent de l'application -> provisioning / SCIM.
 
 ## Conditional Access et Security Defaults
 
-Les Security Defaults sont gratuits, imposent la MFA à tous et ne se règlent pas. Le Conditional Access exige P1 et permet le ciblage fin.
+Security Defaults fournit une protection globale simple et gratuite.
 
-Ce qui tranche n'est pas une préférence mais une contrainte technique : les deux sont **mutuellement exclusifs**. Tant que les Security Defaults sont actifs, la création d'une policy CA est refusée. Un scénario de migration commence donc par leur désactivation.
+Conditional Access permet un ciblage et des contrôles fins avec les licences correspondantes.
+
+Ce qui tranche : besoin de ciblage par utilisateur, application, risque, appareil ou emplacement -> Conditional Access.
 
 ## Grant control et session control
 
-Un grant control est une condition d'octroi : il décide si l'accès est accordé, et sous quelle exigence. Un session control agit **après** l'octroi, sur la durée et le comportement de la session.
+Un grant control décide ce qui doit être satisfait **pour obtenir l'accès** : MFA, authentication strength, appareil conforme, etc.
 
-Ce qui tranche : la MFA, l'appareil conforme et l'authentication strength sont des grant controls. Sign-in frequency, persistent browser, continuous access evaluation et Conditional Access App Control sont des session controls.
+Un session control agit **après l'octroi**, par exemple sign-in frequency ou Conditional Access App Control.
 
-Formulation typique : « during the session » impose un session control.
+Ce qui tranche : `during the session` -> session control.
 
 ## Authentication methods policy et authentication strength
 
-La policy de méthodes définit ce qui est **disponible** dans le tenant. L'authentication strength définit ce qui est **acceptable** pour un accès donné.
+La policy de méthodes définit ce qui est **autorisé / disponible** pour les utilisateurs.
 
-Ce qui tranche : une strength exigeant une méthode non activée dans la policy rend l'accès impossible. Et dans une même policy CA, « Require authentication strength » et « Require multifactor authentication » ne peuvent pas être cochés ensemble.
+L'authentication strength définit les combinaisons considérées comme **suffisantes pour un accès donné**.
+
+Ce qui tranche : permettre FIDO2 -> methods policy ; exiger uniquement des méthodes phishing-resistant sur une application -> authentication strength dans CA.
+
+## CBA username binding et high-affinity binding
+
+Un binding simple peut rapprocher un identifiant du certificat d'un attribut utilisateur.
+
+Un high-affinity binding lie plus fortement le certificat à l'identité. À l'examen, **SKI / X509SKI** est un identifiant à reconnaître immédiatement.
+
+## Windows Hello for Business et mot de passe
+
+Windows Hello for Business utilise une clé protégée sur l'appareil ; le PIN sert à déverrouiller cette clé localement.
+
+Ce n'est pas un mot de passe transmis au serveur.
+
+En hybride, Cloud Kerberos Trust permet l'accès Kerberos aux ressources AD DS sans déployer un modèle certificate trust complet.
 
 ## User risk et sign-in risk
 
-Le risque utilisateur porte sur le **compte** : il agrège des signaux persistants, typiquement des identifiants retrouvés dans une fuite. Le risque de connexion porte sur une **tentative précise** : voyage impossible, adresse IP anonyme, propriétés inhabituelles.
+User risk = probabilité que **le compte** soit compromis.
 
-Ce qui tranche : la remédiation attendue. Un risque utilisateur élevé appelle un changement de mot de passe sécurisé ; un risque de connexion élevé appelle une MFA. Les deux exigent P2.
+Sign-in risk = probabilité qu'**une tentative de connexion précise** soit illégitime.
+
+Ce qui tranche : le risque persistant de l'identité vs le risque de l'événement de connexion.
+
+## CAE et expiration normale du token
+
+Sans mécanisme de révocation anticipée applicable, un access token peut rester utilisable jusqu'à expiration.
+
+Avec Continuous Access Evaluation, des clients et ressources compatibles peuvent réagir à certains événements critiques et rejeter un token avant son expiration normale.
+
+Ce qui tranche : compte désactivé + ressource compatible CAE -> ne pas supposer que le token reste forcément accepté jusqu'à `exp`.
+
+## Révocation de consentement et révocation d'un token
+
+Révoquer un consentement retire le grant pour les **futures émissions**.
+
+Cela ne réécrit pas un access token déjà remis. Désactiver l'application ou supprimer un secret ne doit pas non plus être présenté comme une suppression rétroactive de tous les JWT déjà émis.
 
 ## Access policy et session policy dans Defender for Cloud Apps
 
-L'access policy décide d'entrer ou non. La session policy contrôle ce qui se passe une fois entré : téléchargement, copie, impression, étiquetage des fichiers.
+Access policy = autoriser ou bloquer l'entrée.
 
-Ce qui tranche, et qui est le vrai piège : **les deux** exigent que l'application soit routée vers le reverse proxy par une policy Conditional Access dont le session control est Conditional Access App Control. Conditional Access App Control n'est pas réservé aux session policies.
+Session policy = contrôler les actions pendant la session : téléchargement, copie, impression, etc.
+
+Pour les contrôles temps réel par reverse proxy, le trafic doit être routé via Conditional Access App Control.
+
+## Cloud Discovery et OAuth app policies
+
+Cloud Discovery sert à identifier l'usage des applications cloud et le Shadow IT.
+
+Les OAuth app policies servent à gouverner les applications OAuth connectées et leurs permissions / comportements.
+
+Ce qui tranche : `which cloud apps are users using?` -> Cloud Discovery ; `risky OAuth application` -> OAuth app policy.
+
+## Cloud App Catalog et My Apps
+
+Cloud App Catalog = catalogue de services cloud avec informations et scores de risque.
+
+My Apps = portail utilisateur pour accéder aux applications qui lui sont disponibles.
 
 ## Access package et access review
 
-Un access package sert à **obtenir** un ensemble d'accès, par une demande et une approbation. Une access review sert à **conserver ou retirer** un accès existant, par une recertification.
+Un access package organise **l'attribution et le cycle de vie d'une assignment de ressources** : demande, approbation, durée, expiration.
 
-Ce qui tranche : la direction. Aucun access package ne retire d'accès, aucune access review n'en attribue.
+Une access review sert à **recertifier un accès existant**.
 
-Formulation typique : « demander », « catalogue », « approbation » pour le package ; « périodiquement », « confirmer », « toujours nécessaire » pour la revue.
+Ce qui tranche : `request/approve/expire` -> access package ; `periodically confirm whether access is still required` -> access review.
+
+Important : l'expiration ou le retrait d'une assignment d'access package **retire bien les accès qu'elle fournissait**. La phrase « un access package ne retire jamais d'accès » est donc fausse.
+
+## Access package et Terms of Use
+
+Access package = obtenir des ressources.
+
+Terms of Use = accepter un document / des conditions avant l'accès, généralement via Conditional Access.
+
+Ce qui tranche : `must accept a PDF before accessing the app` -> Terms of Use, pas Access Package.
 
 ## Access review et lifecycle workflow
 
-Une access review pose une question à un humain, périodiquement. Un lifecycle workflow exécute des actions automatiquement, à une étape du cycle de vie.
+Une access review pose une question à un humain pour recertifier l'accès.
 
-Ce qui tranche : la présence ou non d'une décision humaine, et le déclencheur. Une date d'arrivée ou de départ déclenche un workflow ; un calendrier de recertification déclenche une revue.
+Lifecycle Workflows exécute automatiquement des tâches à une étape Joiner/Mover/Leaver.
 
-Côté licence, les revues exigent P2 et les workflows exigent Microsoft Entra ID Governance.
+Lifecycle Workflows est une capacité Governance avancée ; ce n'est pas un bullet explicite du study guide SC-300 d'avril 2026, même si le sujet reste pertinent dans l'écosystème IAM.
+
+## P2 et Entra ID Governance
+
+P2 inclut les capacités historiques d'Entitlement Management et d'Access Reviews que Microsoft avait déjà rendues GA dans P2.
+
+Le produit Microsoft Entra ID Governance ajoute des capacités avancées et inclut également ces capacités historiques.
+
+Ce qui tranche : ne plus utiliser le raccourci obsolète « access package = Governance obligatoire dans tous les cas ».
 
 ## Éligible et actif dans PIM
 
-Une affectation active confère les privilèges maintenant. Une affectation éligible ne confère rien tant qu'elle n'est pas activée.
+Active = privilèges disponibles maintenant.
 
-Ce qui tranche : « permanent active » est le privilège permanent qu'on cherche à éliminer ; « éligible » est l'activation à la demande. Les deux peuvent par ailleurs être permanentes ou limitées dans le temps.
+Eligible = aucun privilège tant que l'utilisateur n'active pas l'affectation.
 
-## PIM for roles et PIM for Groups
+Les deux peuvent être permanents ou limités dans le temps selon les paramètres.
 
-PIM gouverne directement les rôles Entra et les rôles Azure. Pour tout le reste, il faut passer par PIM for Groups : on rend l'utilisateur éligible à devenir membre du groupe, et le groupe porte l'accès.
+## PIM pour rôles et PIM for Groups
 
-Ce qui tranche : la nature de l'accès à rendre temporaire. Un accès applicatif, une licence ou un rôle dans une application SaaS ne sont pas des rôles PIM et exigent donc PIM for Groups.
+PIM gouverne les rôles Microsoft Entra et Azure resources.
+
+PIM for Groups rend l'appartenance ou la propriété d'un groupe éligible / temporaire, ce qui permet de rendre temporaires des accès distribués par ce groupe.
 
 ## Security group et administrative unit
 
-Un groupe répond à « qui reçoit un accès ». Une administrative unit répond à « quels objets un administrateur peut gérer ».
+Un groupe répond à « qui reçoit l'accès ? ».
 
-Ce qui tranche : le groupe est un vecteur d'autorisation, l'AU est un périmètre d'administration. Et l'AU n'est pas transitive : un groupe placé dans une AU n'y place pas ses membres.
+Une administrative unit répond à « quels objets cet administrateur peut-il gérer ? ».
 
-## Owner et member d'un groupe
+Et une AU n'est pas transitive : un groupe placé dans une AU n'y place pas automatiquement ses membres utilisateurs.
 
-Un Owner gère le groupe. Un Member bénéficie de ce que le groupe distribue : licences, rôles Azure RBAC, accès applicatifs.
+## Owner et Member d'un groupe
 
-Ce qui tranche : un Owner qui n'est pas Member ne reçoit rien. Mais dans un raisonnement de moindre privilège, il faut voir qu'il peut s'auto-ajouter comme membre, donc qu'il détient un chemin d'escalade vers tout ce que le groupe donne.
+Owner = gère le groupe.
+
+Member = appartient au groupe et reçoit ce que l'appartenance distribue.
+
+Un Owner qui n'est pas Member ne reçoit pas automatiquement l'accès du groupe.
 
 ## Rôle Entra et rôle Azure RBAC
 
-Les rôles Entra administrent l'annuaire, les rôles Azure RBAC administrent les ressources Azure. Ce sont deux systèmes séparés, avec des portées différentes.
+Rôle Entra = administration de l'annuaire.
 
-Ce qui tranche : un Global Administrator n'est pas Owner des abonnements. Mais il peut basculer le commutateur « Access management for Azure resources » et recevoir User Access Administrator à la portée racine. Ce n'est ni automatique, ni Owner, et c'est tracé.
+Azure RBAC = autorisation sur les ressources Azure.
+
+Un Global Administrator n'est pas automatiquement Owner d'un abonnement Azure.
 
 ## Member et Guest
 
-`UserType` décrit la relation à l'organisation, pas la provenance de l'identité.
+`UserType` décrit la relation à l'organisation.
 
-Ce qui tranche : accepter une invitation fait passer `externalUserState` à `Accepted`, et ne change pas `UserType`. Et les deux axes se croisent : il existe des internal guests et des external members, ces derniers étant le produit par défaut de la cross-tenant synchronization.
+Accepter une invitation change l'état d'acceptation mais ne transforme pas automatiquement Guest en Member.
 
 ## External collaboration, cross-tenant access et cross-tenant synchronization
 
-Trois réglages souvent cités ensemble, jamais interchangeables.
+External collaboration settings = règles générales B2B et invitation.
 
-External collaboration settings fixe les règles générales d'invitation : qui peut inviter, quels domaines, quelles restrictions de lecture d'annuaire.
+Cross-tenant access settings = relation et trust avec un tenant partenaire identifié.
 
-Cross-tenant access settings définit la relation avec un tenant partenaire identifié, et surtout les trust settings qui permettent d'accepter la MFA ou la conformité d'appareil réalisée chez lui.
-
-Cross-tenant synchronization provisionne automatiquement des comptes d'un tenant vers un autre, sans invitation.
-
-Ce qui tranche : « nos partenaires refont une MFA chez nous » appelle les trust settings des cross-tenant access settings. « Les utilisateurs de notre autre tenant doivent apparaître automatiquement » appelle la synchronisation.
+Cross-tenant synchronization = provisioning automatique de comptes entre tenants.
 
 ## Connect Sync et Cloud Sync
 
-Le discriminant n'est pas le nombre de forêts : les deux en gèrent plusieurs.
+Ne pas choisir uniquement sur « multi-forêts ».
 
-Cloud Sync est le seul à gérer des forêts **déconnectées**, sans relation d'approbation, typiquement après une fusion. Connect Sync est le seul à synchroniser les **appareils**, donc à permettre le Hybrid Entra join, et le seul à couvrir les scénarios Exchange hybrides complets et le filtrage par attribut.
-
-Ce qui tranche : une exigence de hybrid join impose Connect Sync ; deux forêts sans approbation imposent Cloud Sync. Les deux peuvent coexister sur le même annuaire.
+Cloud Sync excelle dans certains scénarios légers / forêts déconnectées ; Connect Sync reste nécessaire pour des besoins comme la synchronisation des appareils / Hybrid Entra join et des scénarios hybrides plus complets.
 
 ## PHS et PTA
 
-PHS synchronise un hash du hash du mot de passe et fait authentifier dans le cloud. PTA valide le mot de passe contre l'Active Directory local via des agents sortants.
+PHS synchronise un dérivé du mot de passe vers Entra et permet l'authentification cloud.
 
-Ce qui tranche : la dépendance à l'infrastructure locale. PHS survit à une coupure du site local et alimente la détection de fuites d'identifiants d'ID Protection. PTA ne stocke aucun dérivé de mot de passe dans le cloud mais dépend de la disponibilité des agents.
+PTA valide le mot de passe contre AD DS via les agents au moment de la connexion.
+
+Ce qui tranche : indépendance du site local -> PHS ; validation AD DS temps réel -> PTA.
 
 ## Registered, joined et hybrid joined
 
-Le critère est la propriété de l'appareil et la présence d'un Active Directory.
+Registered = généralement BYOD / personnel.
 
-Registered désigne un appareil personnel, apporté par l'utilisateur. Joined désigne un appareil de l'organisation, sans Active Directory local. Hybrid joined désigne un appareil de l'organisation joint à un Active Directory local et enregistré dans Entra, ce qui exige la synchronisation des appareils.
+Joined = appareil organisationnel joint directement à Entra.
+
+Hybrid joined = appareil joint à AD DS local et enregistré dans Entra.
 
 ## Managed et compliant
 
-Managed signifie géré par une solution de gestion. Compliant signifie conforme aux règles d'une compliance policy.
+Managed = géré par une solution de gestion.
 
-Ce qui tranche : un appareil peut être managed sans être compliant, par exemple s'il n'a pas encore appliqué une mise à jour exigée. Un statut « Compliant : No » ne signifie donc ni appareil compromis ni appareil non géré.
+Compliant = satisfait les règles de conformité.
+
+Un appareil peut être managed sans être compliant.
 
 ## Sign-in, audit et provisioning logs
 
-Trois journaux, trois questions.
+Sign-in = authentification.
 
-Sign-in répond à « qui s'est authentifié ». Audit répond à « qui a modifié la configuration ». Provisioning répond à « qu'a tenté le moteur vers l'application cible ».
+Audit = changement de configuration.
 
-Ce qui tranche : « who changed » impose l'audit, « automatic create, update, disable » impose le provisioning, et une question sur une managed identity impose l'onglet dédié des sign-in logs, distinct de celui des service principals.
+Provisioning = actions du moteur de provisioning.
+
+Ce qui tranche : `who changed the SCIM mapping` -> Audit ; `why wasn't the user provisioned` -> Provisioning.
 
 ## Authentification, autorisation et gouvernance
 
-L'authentification établit qui vous êtes. L'autorisation détermine ce que vous pouvez faire. La gouvernance justifie pourquoi cet accès existe, pour combien de temps, et qui le revalide.
+Authentification = qui es-tu ?
 
-Ce qui tranche : dès qu'un énoncé parle d'approbation, d'expiration, de recertification ou de justification, il s'agit de gouvernance, et donc de licences Governance ou P2.
+Autorisation = que peux-tu faire ?
+
+Gouvernance = pourquoi cet accès existe-t-il, pour combien de temps et qui le revalide ?
 
 ## RBAC et ABAC
 
-Le RBAC accorde des droits selon un rôle attribué à un principal. L'ABAC affine cette décision par des conditions évaluées au moment de l'accès, portant sur des attributs de la ressource, du principal ou de la requête.
+RBAC accorde un rôle à un principal sur une portée.
 
-Dans Azure, les conditions de role assignment sur le stockage sont une mise en œuvre d'ABAC : le rôle donne l'accès, la condition le restreint aux objets portant une étiquette donnée.
+ABAC ajoute des conditions fondées sur des attributs au moment de la décision d'accès.

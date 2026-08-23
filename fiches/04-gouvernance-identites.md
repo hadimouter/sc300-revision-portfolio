@@ -6,78 +6,103 @@ L'authentification répond à « qui es-tu », l'autorisation à « que peux-tu 
 
 ## Licences, à traiter en premier
 
-C'est le domaine où la licence discrimine le plus de réponses, et le seul où P2 ne suffit pas toujours.
+C'est le domaine où les raccourcis de licence vieillissent le plus vite. Il faut distinguer les capacités historiques de Microsoft Entra ID P2 des capacités avancées ajoutées par le produit Microsoft Entra ID Governance.
 
-| Fonctionnalité | Licence requise |
+| Fonctionnalité | Licence à retenir |
 |---|---|
-| Privileged Identity Management, y compris PIM for Groups | Microsoft Entra ID P2 |
-| Access reviews | Microsoft Entra ID P2 |
-| Entitlement Management, access packages | Microsoft Entra ID Governance |
+| Privileged Identity Management, y compris les capacités PIM historiques | Microsoft Entra ID P2 |
+| Access reviews historiquement disponibles en P2 | Microsoft Entra ID P2 |
+| Entitlement Management / access packages historiquement disponibles en P2 | Microsoft Entra ID P2 |
+| Capacités avancées d'Entitlement Management et d'Access Reviews | Microsoft Entra ID Governance |
 | Lifecycle Workflows | Microsoft Entra ID Governance |
-| Provisioning piloté par les RH, écriture vers AD | Microsoft Entra ID Governance |
-| Expiration et revue d'accès des invités | P2 pour les revues, Governance pour les access packages |
 
-Microsoft Entra ID Governance est une référence **additionnelle**, vendue par-dessus P1 ou P2. Un tenant en P2 n'a donc ni Entitlement Management ni Lifecycle Workflows. Un énoncé qui précise l'édition tranche à lui seul plusieurs distracteurs.
+Microsoft Entra ID Governance est un produit avancé disponible au-dessus de P1 ou P2. Il contient les capacités historiques de gouvernance de P2 et des capacités supplémentaires. Il est donc **faux** de mémoriser « P2 n'a pas Entitlement Management » : Microsoft indique explicitement que les capacités Entitlement Management et Access Reviews précédemment GA dans P2 restent disponibles avec P2.
+
+Référence : [Microsoft Entra ID Governance licensing fundamentals](https://learn.microsoft.com/en-us/entra/id-governance/licensing-fundamentals).
 
 ## Entitlement Management
 
-Entitlement Management industrialise la demande d'accès : au lieu d'ouvrir un ticket pour chaque groupe, l'utilisateur demande un ensemble cohérent, une approbation se déclenche, et l'accès expire tout seul.
+Entitlement Management industrialise la demande d'accès : au lieu d'ouvrir un ticket pour chaque groupe, l'utilisateur demande un ensemble cohérent, une approbation se déclenche, et l'accès peut expirer automatiquement.
 
 ### Les quatre objets
 
-Un **catalog** est un conteneur de ressources. Il n'accorde rien : il délimite ce qui est disponible pour construire des access packages, et permet de déléguer à des propriétaires métier la création de packages sur leur propre périmètre. Un catalog peut être marqué comme activé pour les utilisateurs externes.
+Un **catalog** est un conteneur de ressources. Il n'accorde rien : il délimite ce qui est disponible pour construire des access packages, et permet de déléguer à des propriétaires métier la création de packages sur leur propre périmètre.
 
-Un **access package** regroupe des ressources à obtenir ensemble. Les types de ressources sont au nombre de trois : des groupes de sécurité ou Microsoft 365, des applications avec service principal, et des sites SharePoint Online.
+Un **access package** regroupe des ressources à obtenir ensemble. Les types de ressources les plus classiques sont des groupes de sécurité ou Microsoft 365, des applications avec service principal, et des sites SharePoint Online.
 
-Pour chaque ressource ajoutée, on choisit un **resource role**. Ce n'est pas un quatrième type de ressource mais le rôle **dans** la ressource : Member ou Owner pour un groupe, l'un des app roles publiés pour une application, l'un des niveaux d'accès SharePoint pour un site. Une même ressource peut ainsi apparaître dans deux packages avec des rôles différents.
+Pour chaque ressource ajoutée, on choisit un **resource role**. Ce n'est pas un quatrième type de ressource mais le rôle **dans** la ressource : Member ou Owner pour un groupe, l'un des app roles publiés pour une application, l'un des niveaux d'accès SharePoint pour un site.
 
-Une **policy** définit le workflow. Elle répond à quatre questions : qui peut demander (des utilisateurs internes, les membres de connected organizations, tout utilisateur externe, ou personne dans le cas d'une affectation directe par un administrateur), qui approuve (jusqu'à deux étapes, avec approbateurs de secours et délais), quelles informations sont exigées à la demande, et combien de temps dure l'accès avant expiration ou demande de prolongation. Un package peut porter plusieurs policies, chacune ciblant une population différente.
+Une **policy** définit le workflow. Elle répond notamment à quatre questions : qui peut demander, qui approuve, quelles informations sont exigées à la demande, et combien de temps dure l'accès avant expiration ou demande de prolongation. Un package peut porter plusieurs policies, chacune ciblant une population différente.
 
-Une **connected organization** représente un partenaire externe et permet de cibler ses utilisateurs dans une policy. Son identité peut provenir de quatre sources : un tenant Microsoft Entra dans n'importe quel cloud Microsoft, un fournisseur d'identité tiers fédéré en SAML ou WS-Fed, un domaine de messagerie pour lequel le passage par one-time passcode est accepté, ou un tenant Azure AD B2C.
+Une **connected organization** représente un partenaire externe et permet de cibler ses utilisateurs dans une policy. Elle sert à gouverner l'accès d'organisations partenaires sans devoir traiter chaque invité comme une exception isolée.
 
-La chaîne complète est donc : un catalog contient des ressources, un access package en sélectionne certaines avec un rôle, une policy dit qui peut le demander et comment, l'utilisateur demande, l'approbation se joue, une assignment est créée, et l'expiration la retire.
+La chaîne complète est donc : un catalog contient des ressources, un access package en sélectionne certaines avec un rôle, une policy dit qui peut le demander et comment, l'utilisateur demande, l'approbation se joue, une assignment est créée, et l'expiration ou le retrait de cette assignment retire les accès qu'elle fournissait.
 
 ### Ce que fait My Access
 
 My Access, à l'adresse `myaccess.microsoft.com`, est le portail utilisateur. On y demande des access packages, on suit ses demandes, on prolonge ses accès, et on répond aux access reviews dont on est relecteur.
 
-Il ne faut pas le confondre avec les portails voisins : `myaccount.microsoft.com` gère le profil et les méthodes d'authentification, `myapps.microsoft.com` liste les applications accessibles, et le centre d'administration Entra sert aux administrateurs. Une question de scénario qui demande « où l'utilisateur externe demande-t-il son accès » attend My Access.
+Il ne faut pas le confondre avec les portails voisins : `myaccount.microsoft.com` gère le profil et les méthodes d'authentification, `myapps.microsoft.com` liste les applications accessibles, et le centre d'administration Entra sert aux administrateurs.
 
 ### Le cas des externes
 
-C'est le mécanisme le plus élégant du produit et il est souvent testé. Un utilisateur externe qui n'existe pas encore dans l'annuaire peut demander un access package via un lien My Access. S'il est approuvé, Entra **l'invite automatiquement** comme utilisateur B2B et lui accorde l'accès dans la foulée. Quand son assignment expire ou lui est retirée, la policy peut déclencher la **suppression du compte invité** s'il ne détient plus aucune autre assignment.
+Un utilisateur externe peut être invité dans le cadre d'un processus d'Entitlement Management et recevoir les ressources du package après approbation. À l'expiration ou au retrait de la dernière assignment, la configuration de gouvernance peut également participer au nettoyage du compte externe.
 
-L'identité et l'accès sont ainsi créés et détruits ensemble, ce qui répond à la question du nettoyage des invités orphelins sans script ni revue manuelle.
+Le point important est donc :
+
+> Un access package **attribue** des accès via une assignment, et la fin de cette assignment peut aussi **retirer** les ressources accordées.
+
+Il ne faut pas le résumer par « un access package ne retire jamais d'accès ».
+
+## Terms of Use
+
+Le study guide SC-300 actuel nomme explicitement les **Terms of Use (ToU)**.
+
+Les ToU permettent d'exiger qu'un utilisateur accepte des conditions, souvent présentées sous forme de document PDF, avant de poursuivre l'accès. Ils s'intègrent avec **Conditional Access**.
+
+Scénario classique :
+
+> L'entreprise exige que les utilisateurs acceptent un document juridique avant d'accéder à une application.
+
+Réponse : **Terms of Use + policy Conditional Access**.
+
+Ce mécanisme n'attribue pas une ressource comme un access package ; il impose une acceptation avant l'accès.
 
 ## Access reviews
 
-Une access review est une recertification : elle demande à quelqu'un de confirmer qu'un accès existant reste justifié. Ce n'est pas un mécanisme d'attribution.
+Une access review est une recertification : elle demande à quelqu'un de confirmer qu'un accès existant reste justifié. Ce n'est pas un mécanisme initial d'attribution.
 
 ### Ce qui peut être revu
 
-L'inventaire complet compte plus de cibles que ce qu'on retient spontanément :
+Les cibles importantes pour l'examen comprennent notamment :
 
-- l'appartenance à des groupes de sécurité ou Microsoft 365, y compris les membres éligibles quand le groupe est géré par PIM for Groups
-- l'affectation des utilisateurs à des enterprise applications
-- les rôles Microsoft Entra, actifs et éligibles, via PIM
-- les rôles Azure resource, actifs et éligibles, via PIM
-- les assignments d'access packages
-- les utilisateurs invités, sur l'ensemble du tenant
-- les service principals affectés à des rôles privilégiés, avec Workload ID Premium
+- l'appartenance à des groupes ;
+- l'affectation des utilisateurs à des enterprise applications ;
+- les rôles Microsoft Entra via PIM ;
+- les rôles Azure resource via PIM ;
+- les assignments d'access packages ;
+- les utilisateurs invités selon le scénario.
 
 ### Les réglages qui font les questions
 
-La définition d'une revue est rarement testée. Ses paramètres de fin le sont systématiquement.
+**Reviewers** peut être les propriétaires du groupe, des utilisateurs désignés, les utilisateurs eux-mêmes en auto-revue, ou le **manager** de chaque personne revue. Un reviewer de secours est utile lorsque certains utilisateurs n'ont pas de manager exploitable.
 
-**Reviewers** peut être les propriétaires du groupe, des utilisateurs désignés, les utilisateurs eux-mêmes en auto-revue, ou le **manager** de chaque personne revue, auquel cas un relecteur de secours doit être désigné pour les comptes sans manager.
+**Auto apply results to resource** détermine si les décisions sont appliquées automatiquement à la fin de la revue. Désactivé, un administrateur doit appliquer les résultats manuellement.
 
-**Auto apply results to resource** détermine si les décisions sont appliquées automatiquement à la fin de la revue. Désactivé, un administrateur doit appliquer manuellement, et rien ne change tant qu'il ne l'a pas fait. C'est la cause la plus fréquente de « la revue est terminée mais l'accès est toujours là ».
-
-**If reviewers don't respond** décide du sort des accès non revus, avec quatre valeurs : No change, Remove access, Approve access, ou Take recommendations. C'est le réglage à citer quand un scénario demande de retirer automatiquement les accès sur lesquels personne ne s'est prononcé.
-
-Les **recommandations** proposent une décision à partir de la dernière connexion, avec un seuil d'inactivité configurable, par défaut 30 jours.
+**If reviewers don't respond** décide du sort des accès non revus, avec des choix tels que No change, Remove access, Approve access ou Take recommendations selon le scénario.
 
 Une revue peut être ponctuelle ou récurrente, et la justification peut être rendue obligatoire.
+
+### Suivi et réponse manuelle
+
+Le study guide demande également de savoir **monitorer** une access review et **répondre manuellement** à une activité de review.
+
+Il faut donc savoir distinguer :
+
+- créer/configurer la review ;
+- répondre en tant que reviewer ;
+- surveiller son avancement ;
+- appliquer les décisions manuellement si l'auto-apply est désactivé.
 
 ## Privileged Identity Management
 
@@ -85,79 +110,75 @@ PIM supprime les privilèges permanents en les remplaçant par une éligibilité
 
 ### Trois périmètres, pas un
 
-C'est l'omission qui coûte le plus cher sur ce sujet. PIM gouverne :
+PIM gouverne :
 
 **Les rôles Microsoft Entra**, c'est-à-dire l'administration de l'annuaire.
 
 **Les rôles Azure resource**, c'est-à-dire Azure RBAC sur des management groups, abonnements, resource groups ou ressources.
 
-**Les groupes**, via *PIM for Groups*. On rend un utilisateur éligible à devenir **membre** ou **propriétaire** d'un groupe, et il active cette appartenance à la demande. C'est la seule réponse possible quand un scénario demande une élévation temporaire vers quelque chose que PIM ne gouverne pas directement : un accès applicatif distribué par groupe, une licence, un rôle dans une application SaaS. Le groupe doit être role-assignable pour porter des rôles Entra.
+**Les groupes**, via *PIM for Groups*. On rend un utilisateur éligible à devenir **membre** ou **propriétaire** d'un groupe, puis il active cette appartenance à la demande.
+
+PIM for Groups est particulièrement utile lorsqu'un accès applicatif ou une autre autorisation est distribué par un groupe plutôt que par un rôle Entra/Azure directement.
 
 ### Éligible et actif
 
-Une affectation **active** confère les privilèges immédiatement. Une affectation **éligible** ne confère rien tant que l'utilisateur ne l'a pas activée. Les deux peuvent être permanentes ou limitées dans le temps, ce qui donne quatre combinaisons ; l'examen exploite surtout la différence entre « permanent active », le privilège permanent qu'on cherche à éliminer, et « éligible », l'activation à la demande.
+Une affectation **active** confère les privilèges immédiatement. Une affectation **éligible** ne confère rien tant que l'utilisateur ne l'a pas activée.
 
-L'activation se fait dans PIM, ou depuis le bandeau du centre d'administration, et se journalise dans les Audit logs.
+Les deux peuvent être permanentes ou limitées dans le temps. L'examen exploite surtout la différence entre privilège permanent actif et éligibilité à activer à la demande.
 
 ### Réglages d'activation
 
-Les role settings, définis rôle par rôle, exposent davantage de contrôles que la liste habituelle :
+Les role settings peuvent imposer notamment :
 
-- durée maximale d'activation, de 1 à 24 heures
-- exigence de MFA à l'activation
-- exigence d'une **justification** écrite
-- exigence d'un **numéro de ticket** et d'un système de ticket, ce qui permet de tracer vers l'outil ITSM
-- exigence d'**approbation**, avec des approbateurs désignés
-- exigence d'un **authentication context** Conditional Access à l'activation, ce qui permet d'imposer par exemple une MFA résistante au phishing ou un appareil conforme au moment précis de l'élévation
-- notifications aux administrateurs, aux approbateurs et à l'activateur
+- durée maximale d'activation ;
+- MFA ;
+- justification ;
+- numéro de ticket ;
+- approbation ;
+- authentication context Conditional Access à l'activation ;
+- notifications.
 
-L'authentication context est la réponse attendue quand un scénario veut appliquer des conditions Conditional Access à l'activation d'un rôle, puisqu'une policy CA classique ne peut pas cibler une activation PIM directement.
+L'authentication context est la réponse attendue lorsqu'un scénario veut appliquer une exigence Conditional Access renforcée **au moment précis de l'activation PIM**.
 
-### Alertes et revues
+### Azure resources, historique et audit
 
-PIM produit ses propres alertes : trop d'administrateurs globaux, rôles attribués hors de PIM, comptes n'utilisant jamais leur rôle, activations trop fréquentes. Il porte également ses propres access reviews de rôles, capables de couvrir les affectations actives comme éligibles.
+PIM ne concerne pas seulement Entra. Il sait gouverner les rôles Azure RBAC à différents scopes.
+
+L'historique et les rapports PIM servent à analyser les affectations, activations et décisions. Une question du type « qui a activé un rôle privilégié sur les 20 derniers jours » oriente vers l'audit / history PIM, pas vers les sign-in logs.
 
 ## Lifecycle Workflows
 
-Lifecycle Workflows automatise les tâches liées aux étapes de la vie professionnelle d'un utilisateur. Le vocabulaire officiel est **Joiner, Mover, Leaver**.
+Lifecycle Workflows automatise les tâches Joiner, Mover, Leaver à partir d'événements et d'attributs du cycle de vie, par exemple une date d'arrivée ou de départ.
 
-Un workflow se compose de deux parties. Les **execution conditions** définissent le périmètre, c'est-à-dire la population concernée par une règle sur les attributs, et le déclencheur, exprimé en jours avant ou après une date. Les **tasks** définissent les actions, choisies dans une bibliothèque d'une trentaine de tâches intégrées : envoyer un courriel de bienvenue au manager, générer un Temporary Access Pass, ajouter à des groupes ou à des équipes, désactiver le compte, retirer de tous les groupes, retirer toutes les licences, supprimer le compte, ou déclencher un flux Logic Apps personnalisé.
+C'est une fonction importante de Microsoft Entra ID Governance, mais **elle n'est pas listée comme objectif explicite dans le study guide SC-300 en vigueur depuis le 27 avril 2026**. Elle reste utile pour comprendre l'écosystème IAM et peut apparaître comme sujet connexe, Microsoft précisant que les bullets du study guide ne sont pas exhaustifs.
 
-Les déclencheurs reposent sur les attributs `employeeHireDate` et `employeeLeaveDateTime`, qui doivent donc être alimentés, généralement par le connecteur RH (Workday, SuccessFactors) ou par la synchronisation depuis l'Active Directory.
-
-La confusion à éviter est avec les access reviews. Une access review demande « cet accès est-il encore justifié », de manière périodique et avec un humain qui décide. Un lifecycle workflow exécute « fais ces actions à cette étape », de manière automatique et sans décision humaine.
+La confusion à éviter est avec les access reviews : une review demande à un humain si un accès doit rester ; un lifecycle workflow exécute automatiquement des tâches à une étape du cycle de vie.
 
 ## Comptes d'urgence
 
-Les comptes break-glass servent à reprendre la main quand tout le reste échoue : panne de la fédération, policy Conditional Access mal configurée qui verrouille tous les administrateurs, indisponibilité d'un fournisseur de MFA.
+Les comptes break-glass servent à reprendre la main quand tout le reste échoue : panne de fédération, policy Conditional Access mal configurée, problème sur les méthodes d'authentification habituelles.
 
-La checklist Microsoft est précise, et c'est elle qui est testée plutôt que le principe :
+Points importants :
 
-- au moins **deux** comptes, pour couvrir la défaillance de l'un
-- **cloud-only**, sur le domaine `*.onmicrosoft.com`, jamais fédérés ni synchronisés depuis un annuaire local
-- non associés à une personne physique ni à un téléphone ou un appareil individuel
-- rôle **Global Administrator** attribué de façon **permanente**, et non via une éligibilité PIM, puisque l'activation pourrait elle-même être bloquée
-- identifiants résistants au phishing, avec au moins un compte exclu de toute policy Conditional Access qui pourrait le bloquer
-- identifiants stockés physiquement, séparés, en lieu sûr
-- surveillance des connexions avec **alerte immédiate** sur toute utilisation, via Log Analytics ou Sentinel
-- validation périodique, au moins tous les 90 jours et après tout changement majeur de configuration
+- disposer d'au moins deux comptes d'urgence ;
+- comptes cloud-only, non dépendants d'AD DS/fédération ;
+- Global Administrator disponible sans activation PIM ;
+- méthodes d'authentification résilientes et distinctes des dépendances ordinaires ;
+- exclusions maîtrisées des policies susceptibles de verrouiller le tenant ;
+- alerte immédiate sur toute utilisation ;
+- validation périodique.
 
-Exclure un compte de toutes les policies CA est un compromis assumé : c'est précisément ce qui le rend utilisable quand une policy verrouille le tenant, et c'est pourquoi la surveillance de son usage est obligatoire.
+Le principe est de supprimer les dépendances qui pourraient précisément être en panne au moment où le compte d'urgence est nécessaire.
 
 ## Ce qui se joue sur des détails
 
-Entitlement Management et Lifecycle Workflows exigent Microsoft Entra ID Governance, pas seulement P2.
-
-Un access package accepte trois types de ressources : groupes, applications, sites SharePoint. Le resource role est le rôle dans la ressource, pas un type de ressource.
-
-Un catalog n'accorde rien par lui-même.
-
-PIM couvre les rôles Entra, les rôles Azure et les groupes. PIM for Groups est la seule voie pour rendre temporaire un accès distribué par groupe.
-
-Une access review dont « Auto apply results » est désactivé ne change rien tant qu'un administrateur n'applique pas les décisions.
-
-« If reviewers don't respond » est le réglage qui décide du sort des accès non revus.
-
-Un compte break-glass reçoit son rôle de façon permanente et non via PIM, parce que l'activation peut être précisément ce qui est cassé.
-
-Une access review recertifie un accès existant ; un lifecycle workflow exécute des actions à une étape du cycle de vie. Aucun des deux ne remplace l'autre.
+- **P2 inclut encore les capacités historiques d'Entitlement Management et d'Access Reviews** ; Governance ajoute des capacités avancées.
+- Lifecycle Workflows exige Microsoft Entra ID Governance.
+- Un catalog n'accorde rien par lui-même.
+- Un access package accorde des ressources via une assignment et les retire lorsque cette assignment expire ou est retirée.
+- Terms of Use s'intègre avec Conditional Access pour exiger une acceptation avant l'accès.
+- PIM couvre les rôles Entra, les rôles Azure et les groupes.
+- Une access review avec `Auto apply results` désactivé ne modifie pas la ressource tant qu'un administrateur n'applique pas les décisions.
+- `If reviewers don't respond` décide du sort des accès non revus.
+- Un compte break-glass doit rester utilisable même quand PIM ou une policy ordinaire ne l'est plus.
+- Une access review recertifie un accès existant ; elle ne remplace ni Entitlement Management ni un workflow de cycle de vie.

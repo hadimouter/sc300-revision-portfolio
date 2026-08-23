@@ -4,132 +4,152 @@ Ces confusions ne sont pas des subtilités de vocabulaire : ce sont les endroits
 
 ## Applications et permissions
 
-**Configurer une permission ne l'accorde pas.** Ajouter `User.Read.All` dans API permissions laisse un avertissement dans la colonne Status et l'appel échoue. Tant que le consentement n'est pas accordé, rien ne fonctionne. Ce sont deux opérations distinctes, et les retirer sont également deux opérations distinctes.
+**Configurer une permission ne l'accorde pas.** Ajouter `User.Read.All` dans API permissions ne vaut pas consentement. La configuration et le grant sont deux opérations distinctes.
 
-**Une permission applicative exige toujours un consentement administrateur.** Il n'y a aucune exception, quels que soient les réglages de consentement du tenant. Le mot « généralement » est un distracteur.
+**Une permission applicative exige un consentement administrateur.** Le mot « généralement » est un mauvais raccourci ici.
 
-**Application Administrator ne peut pas consentir aux app roles Microsoft Graph.** C'est la seule famille de permissions que ce rôle, et Cloud Application Administrator, ne peuvent pas accorder. Il faut Privileged Role Administrator ou Global Administrator. Une question de moindre privilège sur un consentement Graph applicatif attend cette réponse.
+**Application Administrator ne peut pas consentir aux app roles Microsoft Graph.** Pour cette famille particulièrement sensible, il faut un rôle plus privilégié comme Privileged Role Administrator ou Global Administrator.
 
-**Le nom d'une permission ne suffit jamais.** `User.Read.All` existe en délégué et en applicatif. En délégué, les droits effectifs sont l'intersection avec ceux de l'utilisateur ; en applicatif, la permission s'applique à tout le tenant.
+**Le nom d'une permission ne suffit jamais.** `User.Read.All` existe en délégué et en applicatif. Le type détermine le contexte et la portée réelle.
 
-**`roles` n'est pas réservé aux tokens app-only.** Dans un token utilisateur, il porte les app roles métier assignés à cet utilisateur ou à ses groupes. Seul `idtyp` valant `app` identifie de façon fiable un token app-only. `scp`, lui, n'apparaît bien que dans les tokens délégués.
+**`roles` n'est pas réservé aux tokens app-only.** Un token utilisateur peut aussi porter des app roles métier dans `roles`. `idtyp=app` est un marqueur fiable d'un token app-only ; `scp` identifie les permissions déléguées.
 
-**`.default` est obligatoire dans le client credentials flow.** Ce n'est pas une commodité : demander une permission individuelle provoque une erreur. Et le contenu du token dépend de ce qui a été consenti, pas de ce que le code demande.
+**`.default` est obligatoire dans le client credentials flow v2.0 pour Microsoft Graph.** Le token reflète les permissions applicatives déjà configurées et consenties pour la ressource.
 
-**Révoquer un consentement ne coupe pas les tokens déjà émis.** Ils restent valides jusqu'à expiration, environ une heure. Pour couper immédiatement, il faut désactiver le service principal ou révoquer les sessions.
+**Révoquer un consentement ne fait pas disparaître les access tokens déjà émis.** Ils peuvent rester valides jusqu'à expiration ou jusqu'à ce qu'un mécanisme pris en charge par la ressource les rejette. Désactiver une application ou supprimer son credential empêche surtout de nouvelles émissions de token ; cela ne voyage pas dans le temps pour effacer un JWT déjà remis.
 
-**Assignment required n'accorde aucun consentement.** Il restreint qui peut obtenir un token. En revanche, dans l'autre sens, activer l'affectation rend le consentement utilisateur en libre-service insuffisant, puisque l'absence d'affectation bloque en amont.
+**Assignment required n'accorde aucun consentement.** Il contrôle qui peut obtenir un token / accéder à l'application selon l'affectation. Affectation et consentement répondent à deux questions différentes.
 
-**L'affectation par groupe à une enterprise application exige P1.** En édition Free, seules les affectations individuelles fonctionnent.
+**L'affectation par groupe à une enterprise application peut avoir un prérequis de licence supérieur à l'affectation individuelle.** Lire l'édition précisée dans l'énoncé.
 
-**Un application object et un service principal ont le même Client ID et des Object ID différents.** C'est le test qui prouve qu'il s'agit de deux objets.
+**Un application object et un service principal ont le même Client ID et des Object ID différents.** C'est le test le plus simple pour vérifier qu'on regarde deux objets distincts.
 
-**Une managed identity ne dispense pas d'autorisation.** Elle supprime le credential, pas le besoin d'app roles Graph consentis sur son service principal.
+**Une managed identity ne dispense pas d'autorisation.** Elle supprime le problème du credential, pas le besoin d'un rôle Azure RBAC ou d'une permission Graph selon la ressource cible.
 
-**Une managed identity ne fonctionne que sur Azure.** Pour un workload hors Azure, la réponse est la workload identity federation.
+**Une managed identity concerne les workloads pris en charge par Azure.** Pour un workload externe disposant d'un IdP OIDC, penser workload identity federation.
 
-**Le proxy d'application exige P1**, et seule la préauthentification Microsoft Entra ID permet d'y appliquer le Conditional Access. En mode Passthrough, aucune policy CA ne s'applique.
+**Un managed service account n'est pas une managed identity.** MSA/gMSA appartient au monde Windows / AD DS ; managed identity appartient au monde Azure.
 
 ## Authentification et Conditional Access
 
-**La MFA est un grant control, jamais une condition.** Une condition décrit le contexte, un grant control décrit l'exigence.
+**La MFA est un grant control, pas une condition.** Une condition décrit le contexte ; un grant control décrit ce qui doit être satisfait pour obtenir l'accès.
 
-**L'emplacement réseau n'est plus une condition.** Dans le portail actuel, Network est un bloc distinct au sein d'Assignments, aux côtés de Users, Target resources et Conditions.
+**Network est un bloc distinct dans le portail Conditional Access actuel.** Ne pas raisonner uniquement avec d'anciennes captures où l'emplacement était rangé sous Conditions.
 
-**« Require authentication strength » et « Require multifactor authentication » sont mutuellement exclusifs** dans une même policy Conditional Access.
+**« Require authentication strength » et « Require multifactor authentication » ne sont pas deux cases à empiler sans réfléchir.** Une authentication strength exprime déjà les combinaisons de méthodes acceptables.
 
-**Security Defaults et Conditional Access s'excluent techniquement.** Ce n'est pas une recommandation : tant que les Security Defaults sont actifs, la création d'une policy CA est refusée.
+**Security Defaults et Conditional Access personnalisé ne s'utilisent pas comme deux couches indépendantes.** Un tenant qui bascule vers des policies CA personnalisées doit traiter explicitement les Security Defaults.
 
-**Une méthode activée n'est pas une méthode enregistrée.** Le périmètre autorisé par la policy et le périmètre réellement enregistré par les utilisateurs sont deux choses différentes, et l'écart se mesure dans le rapport User registration details.
+**Une méthode activée n'est pas une méthode enregistrée.** La policy autorise ; l'utilisateur doit encore enregistrer réellement sa méthode.
 
-**Un TAP est créé par un administrateur pour quelqu'un d'autre.** Jamais pour soi-même. Le rôle est Authentication Administrator, ou Privileged Authentication Administrator pour agir sur des comptes administrateurs.
+**Un TAP est créé par un administrateur pour un autre utilisateur.** Il sert à l'onboarding / recovery, pas à se fabriquer soi-même une porte de secours.
 
-**Le caractère à usage unique d'un TAP se décide à la création de chaque pass.** La policy ne fait que plafonner ce choix. Une policy dont One-time use est à False autorise les deux ; à True, elle impose l'usage unique.
+**Le caractère one-time d'un TAP dépend de sa configuration de policy et de la création du pass.** Lire les deux niveaux de configuration au lieu de supposer qu'un TAP est toujours mono-usage.
 
-**Un TAP satisfait la MFA mais aucune authentication strength résistante au phishing.**
+**Un TAP peut satisfaire une exigence MFA sans être une méthode phishing-resistant.** Ne pas confondre « MFA » et « phishing-resistant MFA ».
 
-**« MFA requirement satisfied by claim in the token » signifie qu'aucune nouvelle MFA n'a été demandée.** L'exigence a été satisfaite par un claim antérieur. C'est le fonctionnement normal du SSO, pas une anomalie.
+**« MFA requirement satisfied by claim in the token » signifie qu'aucune nouvelle MFA n'a été demandée pour cet événement.** L'exigence a été satisfaite à partir d'une preuve déjà présente dans le contexte de session/token.
 
-**Une session policy Defender for Cloud Apps ne fonctionne pas seule.** Comme une access policy, elle exige que l'application soit routée par une policy Conditional Access dont le session control est Conditional Access App Control.
+**CAE ne signifie pas “tous les tokens sont supprimés instantanément”.** Sur des clients et ressources compatibles, certains événements critiques comme la désactivation d'un compte peuvent entraîner le rejet d'un token avant son expiration normale. Les capacités CAE liées aux critical events ne doivent pas être réduites au raccourci « P1 obligatoire ».
 
-**Les policies de risque exigent P2.** Un tenant en P1 ne peut pas exploiter le risque utilisateur ni le risque de connexion, quelle que soit la formulation du scénario.
+**Une session policy Defender for Cloud Apps ne fonctionne pas seule.** Le trafic doit être routé vers Conditional Access App Control pour le contrôle en temps réel par reverse proxy.
 
-**Le risque utilisateur porte sur le compte, le risque de connexion sur une tentative.** La remédiation diffère : changement de mot de passe sécurisé dans un cas, MFA dans l'autre.
+**Les policies de risque utilisateur / sign-in risk avancées exigent P2.** Ne pas confondre visibilité de base et remédiation/policy basée sur le risque.
 
-**« Compliant : No » ne signifie ni appareil compromis ni appareil non géré.** Un appareil peut être managed sans être compliant, par exemple faute d'une mise à jour.
+**Le risque utilisateur porte sur le compte, le risque de connexion sur une tentative.** C'est la distinction qui tranche la majorité des scénarios.
 
-**L'emplacement affiché dans un sign-in log n'est pas une named location.** Le premier est une donnée déduite de l'adresse IP, le second est un objet de configuration.
+**`Compliant: No` ne signifie ni compromis ni non géré.** Managed et compliant sont deux états différents.
+
+**L'emplacement affiché dans un sign-in log n'est pas une Named Location.** Le premier est une observation ; la seconde est un objet de configuration.
+
+**CBA high-affinity : penser SKI/X509SKI.** Une question de binding fort ne demande pas simplement « UPN » par réflexe.
+
+**Windows Hello for Business en hybride : reconnaître Cloud Kerberos Trust.** Le PIN n'est pas le secret envoyé au serveur ; il déverrouille une clé protégée sur l'appareil.
 
 ## Identités et annuaire
 
-**Global Administrator n'est pas Owner des abonnements Azure.** Mais il peut basculer « Access management for Azure resources » et recevoir User Access Administrator à la portée racine `/`. Pas Owner, pas automatique, et tracé dans les Audit logs.
+**Global Administrator n'est pas Owner des abonnements Azure.** Le commutateur `Access management for Azure resources` lui permet d'obtenir User Access Administrator à la portée racine, ce qui est autre chose qu'Owner.
 
-**Un tenant n'est pas un abonnement.** Un abonnement fait confiance à un seul tenant, un tenant peut servir plusieurs abonnements ou aucun.
+**Un tenant n'est pas un abonnement.** Un tenant peut exister sans abonnement et servir plusieurs abonnements.
 
-**Un rôle Entra n'est pas un rôle Azure RBAC.** Deux systèmes séparés, deux portées différentes, aucune propagation de l'un vers l'autre.
+**Un rôle Entra n'est pas un rôle Azure RBAC.** Deux systèmes séparés, deux portées différentes.
 
-**Accepter une invitation ne transforme pas un Guest en Member.** Cela fait passer `externalUserState` à `Accepted`. Le changement de `UserType` est une opération distincte et manuelle.
+**Accepter une invitation ne transforme pas un Guest en Member.** Cela change l'état d'acceptation, pas automatiquement `UserType`.
 
-**`UserType` décrit la relation, pas la provenance.** Il existe des internal guests et des external members ; la cross-tenant synchronization produit par défaut des external members, pas des invités.
+**`UserType` décrit la relation à l'organisation, pas l'endroit où l'identité s'authentifie.**
 
-**Un Owner de groupe n'est pas Member.** Il ne reçoit ni licence, ni rôle Azure RBAC, ni accès applicatif attribué au groupe. Mais il peut s'auto-ajouter comme membre : c'est un chemin d'escalade à voir dans tout raisonnement de moindre privilège.
+**Un Owner de groupe n'est pas Member.** Il ne reçoit pas automatiquement les accès distribués au groupe, même s'il peut avoir la capacité de modifier sa composition.
 
-**Un groupe role-assignable ne peut pas être dynamique**, et la propriété `isAssignableToRole` se fixe définitivement à la création.
+**Un groupe role-assignable ne peut pas être dynamique.** Sa propriété de rôle doit être pensée dès sa création.
 
-**Une administrative unit n'est pas transitive.** Y placer un groupe donne le droit de gérer ce groupe, pas ses membres.
+**Une administrative unit n'est pas transitive.** Placer un groupe dans une AU ne place pas automatiquement les membres de ce groupe dans le scope utilisateur de l'AU.
 
-**Une restricted management AU bloque même les administrateurs à portée tenant**, à l'exception du Global Administrator.
+**Une licence sans `usageLocation` peut échouer.** Le contexte de licence et les propriétés de l'utilisateur comptent.
 
-**Une licence sans `usageLocation` échoue**, y compris via un groupe, et l'erreur n'apparaît que dans les propriétés de licence de l'utilisateur.
+**Une licence héritée d'un groupe se gère au niveau du mécanisme qui l'a attribuée.** Ne pas tenter de retirer individuellement un héritage de groupe comme s'il s'agissait d'une affectation directe.
 
-**Une licence héritée d'un groupe ne se retire pas individuellement.** Il faut sortir l'utilisateur du groupe.
+**Cross-tenant access n'est pas cross-tenant synchronization.** Le premier définit règles/trust ; le second provisionne des comptes.
 
-**Cross-tenant access n'est pas cross-tenant synchronization.** Le premier définit une relation de confiance et des règles d'accès, le second provisionne des comptes.
+**Le discriminant entre Connect Sync et Cloud Sync n'est pas “multi-forêts”.** Regarder plutôt les besoins comme forêts déconnectées, appareils / hybrid join, scénarios Exchange hybrides et possibilités de synchronisation.
 
-**Le discriminant entre Connect Sync et Cloud Sync n'est pas le nombre de forêts.** Les deux gèrent plusieurs forêts. Cloud Sync est le seul à gérer des forêts déconnectées ; Connect Sync est le seul à synchroniser les appareils, donc à permettre le Hybrid Entra join.
+**PHS n'est pas PTA.** PHS authentifie côté cloud avec un dérivé synchronisé ; PTA valide le mot de passe contre AD DS via les agents.
 
-**Seamless SSO exige un appareil joint au domaine Active Directory.** Il ne concerne pas les appareils Entra joined ou hybrid joined, qui obtiennent le SSO par leur Primary Refresh Token.
+**Custom domain : ajouter n'est pas vérifier.** La preuve de propriété DNS attend typiquement **TXT ou MX**.
 
-**PHS n'est pas PTA.** PHS fait authentifier dans le cloud et survit à une coupure du site local ; PTA valide contre l'Active Directory local et dépend de la disponibilité des agents.
-
-**PHS est nécessaire à la détection d'identifiants divulgués** d'ID Protection. Sans elle, cette détection ne peut pas fonctionner.
+**Bulk B2B : connaître les colonnes exactes.** `inviteeEmail` et `inviteRedirectUrl` sont des détails de fichier CSV faciles à rater.
 
 ## Gouvernance
 
-**Entitlement Management et Lifecycle Workflows exigent Microsoft Entra ID Governance**, une référence additionnelle. Un tenant en P2 ne les a pas. C'est le piège de licence le plus rentable du domaine.
+**P2 n'est pas dépourvu d'Entitlement Management.** Microsoft indique que les capacités Entitlement Management et Access Reviews historiquement GA dans P2 restent incluses en P2. Entra ID Governance ajoute des capacités avancées. Le vieux raccourci « access package = Governance obligatoire dans tous les cas » n'est plus fiable.
 
-**Un access package n'est pas une access review.** L'un fait obtenir, l'autre fait conserver ou retirer. Aucun ne fait le travail de l'autre.
+**Lifecycle Workflows exige Microsoft Entra ID Governance.** C'est une capacité avancée et, dans le study guide SC-300 du 27 avril 2026, ce n'est pas un bullet explicite même si le sujet reste connexe à l'IAM.
 
-**Une access review n'est pas un lifecycle workflow.** La revue pose une question à un humain, périodiquement ; le workflow exécute des actions automatiquement à une étape du cycle de vie.
+**Un access package n'est pas une access review.** Le package gère une assignment de ressources avec demande/approbation/durée ; la review recertifie un accès existant.
 
-**Un catalog n'accorde rien.** Il délimite ce qui est disponible pour construire des packages.
+**Un access package peut retirer les accès de son assignment à l'expiration ou au retrait.** Donc « un access package ne retire jamais » est faux.
 
-**Un resource role n'est pas un type de ressource.** Les types sont au nombre de trois : groupes, applications, sites SharePoint. Le resource role est le rôle dans la ressource.
+**Un catalog n'accorde rien.** Il contient ce qui peut être utilisé pour construire les packages.
 
-**Une access review dont « Auto apply results to resource » est désactivé ne change rien** tant qu'un administrateur n'applique pas les décisions. C'est la cause la plus fréquente de « la revue est finie mais l'accès est toujours là ».
+**Un resource role n'est pas un type de ressource.** C'est le rôle choisi dans une ressource incluse au package.
 
-**« If reviewers don't respond » décide du sort des accès non revus**, avec quatre valeurs : No change, Remove access, Approve access, Take recommendations.
+**Terms of Use n'est pas Entitlement Management.** Pour imposer l'acceptation d'un PDF / de conditions avant l'accès, penser Terms of Use + Conditional Access.
 
-**Éligible ne signifie pas actif.** Une affectation éligible ne confère aucun privilège tant qu'elle n'est pas activée.
+**Une access review avec Auto apply désactivé ne modifie pas automatiquement la ressource.** Il faut appliquer les résultats manuellement.
 
-**PIM ne gouverne pas que les rôles.** Il couvre les rôles Entra, les rôles Azure et les groupes. Un accès applicatif distribué par groupe ne peut être rendu temporaire que par PIM for Groups.
+**`If reviewers don't respond` décide du sort des accès non revus.** C'est différent de la décision explicite d'un reviewer.
 
-**PIM ne remplace pas le Conditional Access**, et une policy CA ne peut pas cibler directement une activation PIM : il faut passer par un authentication context déclaré dans les role settings.
+**Éligible ne signifie pas actif dans PIM.** Une éligibilité ne donne pas le privilège tant qu'elle n'est pas activée.
 
-**Un compte break-glass reçoit son rôle de façon permanente, pas via PIM.** L'activation pourrait être précisément ce qui est cassé. Et il est exclu des policies CA, ce qui rend la surveillance de son usage obligatoire.
+**PIM couvre les rôles Entra, les rôles Azure et les groupes.** Ne pas limiter PIM au portail Entra roles.
+
+**L'historique PIM est le bon endroit pour les activations/assignments privilégiés.** Ne pas tout envoyer aux sign-in logs.
+
+**Un compte break-glass ne doit pas dépendre du mécanisme qui pourrait être en panne.** C'est le principe qui guide le choix de ses méthodes d'authentification, de son rôle et de ses exclusions.
+
+## Enterprise applications et Defender for Cloud Apps
+
+**SAML claims se configurent dans le SSO de l'Enterprise Application, pas dans API permissions.** Les permissions OAuth/Graph et les assertions SAML sont deux mondes différents.
+
+**Changer un mapping SCIM = Audit logs ; échec d'exécution SCIM = Provisioning logs.** Le premier répond à « qui a changé », le second à « qu'a fait le moteur ».
+
+**Cloud Discovery n'est pas OAuth app governance.** Cloud Discovery vise le Shadow IT / l'usage des applications ; les OAuth app policies gouvernent les applications OAuth connectées.
+
+**Cloud App Catalog n'est pas My Apps.** Le premier contient les informations et scores de risque des apps cloud ; My Apps est une expérience utilisateur d'accès aux applications.
+
+**Access policy et session policy ne répondent pas à la même question.** Access décide d'entrer ou non ; session contrôle ce qui se passe pendant la session.
 
 ## Journaux
 
-**Il y a exactement quatre catégories de sign-in logs.** Les managed identities ont la leur, distincte de celle des service principals. Une question sur une Azure Function ou une VM Azure attend l'onglet Managed identity sign-ins.
+**Il y a quatre catégories importantes de sign-in logs.** Utilisateurs interactive, utilisateurs non-interactive, service principals, managed identities.
 
-**`Success` dans l'onglet Conditional Access signifie « policy évaluée avec succès »**, pas « accès accordé par cette policy ». Une connexion bloquée présente au moins une policy en `Failure`. Une policy en `Not applied` signale un problème de ciblage.
+**`Success` dans l'onglet Conditional Access signifie que la policy applicable a été satisfaite, pas qu'elle est l'unique raison de l'accès.**
 
-**`Skipped` dans les Provisioning logs n'est pas une erreur.** C'est le plus souvent un filtre de scope ou une absence d'affectation à l'application. C'est la réponse à « le provisioning tourne sans erreur mais l'utilisateur n'apparaît pas ».
+**`Skipped` dans Provisioning logs n'est pas nécessairement une erreur.** Lire le scope et le détail de l'étape.
 
-**Request ID et Correlation ID ne servent pas à la même chose.** Le premier identifie une requête unique, le second regroupe les requêtes d'une même opération.
+**Request ID et Correlation ID n'ont pas le même rôle.** Le premier identifie une requête ; le second aide à regrouper une opération.
 
-**La rétention native est de 7 jours en Free et 30 jours en P1 et P2.** Toute exigence supérieure impose un diagnostic setting vers Log Analytics, un storage account ou un Event Hub.
+**Au-delà de la rétention native, il faut exporter.** Diagnostic settings vers Log Analytics, Storage ou Event Hub selon l'objectif.
 
-**Identity Secure Score ne bloque rien.** C'est un indicateur de posture, pas un contrôle d'accès.
+**Identity Secure Score ne bloque rien.** C'est un indicateur de posture.
 
-**Un code d'erreur se lit avec son contexte.** `50053` peut signaler un compte verrouillé légitimement comme une attaque par pulvérisation de mots de passe ; `50105` signale une absence d'affectation à l'application et non un problème d'authentification.
+**Un code d'erreur se lit avec son contexte.** Le numéro seul ne remplace pas Authentication Details, Conditional Access et les informations de l'événement.
