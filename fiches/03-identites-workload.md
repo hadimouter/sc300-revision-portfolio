@@ -2,80 +2,83 @@
 
 Domaine « Plan and implement workload identities », 20 à 25 % de l'examen.
 
-Une identité de workload est une identité qui n'appartient pas à un humain : une application, un service, un script, une machine. Microsoft Entra en distingue trois formes, et l'essentiel des questions de ce domaine consiste à savoir laquelle choisir et comment lui accorder le strict nécessaire.
+Une identité de workload est une identité qui n'appartient pas à un humain : application, service, script ou machine. Les questions demandent surtout de choisir le bon type d'identité, le bon mécanisme d'authentification et le strict nécessaire côté autorisation.
 
 ## Application object et service principal
 
-Enregistrer une application crée **deux objets distincts**, et c'est la confusion la plus fréquente du domaine.
+Enregistrer une application crée **deux objets distincts**.
 
-L'**application object** est la définition globale : identifiants, URI de redirection, secrets et certificats, permissions demandées, API exposée, app roles. Il n'existe qu'une fois, dans le tenant qui a créé l'application. Il est visible sous App registrations.
+L'**application object** est la définition globale : identifiants, URI de redirection, secrets et certificats, permissions demandées, API exposée, app roles. Il vit dans le tenant d'origine et apparaît sous App registrations.
 
-Le **service principal** est l'instance locale de cette application dans un tenant donné. Il porte les affectations d'utilisateurs, les consentements accordés, les app role assignments et les propriétés de connexion propres à ce tenant. Il est visible sous Enterprise applications.
+Le **service principal** est l'instance locale de l'application dans un tenant. Il porte les affectations, consentements, app role assignments et propriétés propres à ce tenant. Il apparaît sous Enterprise applications.
 
-Pour une application mono-tenant, les deux objets vivent dans le même tenant. Pour une application multi-tenant, il existe un seul application object dans le tenant éditeur, et un service principal par tenant client, créé au moment du premier consentement.
+Pour une application multi-tenant, il existe un application object chez l'éditeur et un service principal dans chaque tenant client où l'application est consentie.
 
-Les deux objets partagent le même **Application (client) ID**, mais ont des **Object ID** différents. C'est le test le plus simple pour vérifier qu'on regarde bien deux objets et non deux vues du même.
+Les deux partagent le même **Application (client) ID**, mais ont des **Object ID différents**.
 
 | | App registrations | Enterprise applications |
 |---|---|---|
-| Objet manipulé | Application object | Service principal |
-| Ce qu'on y configure | Branding and properties, Authentication (plateformes, URI de redirection, front-channel logout), Certificates and secrets, Token configuration, API permissions, Expose an API, App roles, Owners, Manifest | Properties (Assignment required, Visible to users), Users and groups, Single sign-on, Provisioning, Permissions accordées, Sign-in logs du principal |
-| Portée | Le tenant d'origine | Chaque tenant où l'application est présente |
+| Objet | Application object | Service principal |
+| Configuration | Authentication, redirect URIs, credentials, API permissions, Expose an API, App roles, Owners, Manifest | Assignment required, Users and groups, Single sign-on, Provisioning, consentements, Sign-in logs |
+| Portée | Tenant d'origine | Tenant local |
 
-Les URI de redirection se configurent sous **Authentication**, pas ailleurs. Un service principal peut aussi exister sans application object dans le tenant : c'est le cas des applications Microsoft préintégrées et des managed identities.
+Un service principal peut aussi exister sans application object local, notamment pour des applications Microsoft ou des managed identities.
 
 ## Permissions déléguées et permissions applicatives
 
-| | Permission déléguée | Permission applicative |
+| | Déléguée | Applicative |
 |---|---|---|
-| Contexte | L'application agit au nom d'un utilisateur connecté | L'application agit avec sa propre identité, sans utilisateur |
+| Contexte | Au nom d'un utilisateur connecté | Sans utilisateur, identité propre de l'application |
 | Objet Entra | `oauth2PermissionScope` | `appRole` |
-| Claim du token | `scp` | `roles` |
-| Qui peut consentir | L'utilisateur pour lui-même, sauf permissions admin-restricted ; ou un administrateur pour tous | Un administrateur uniquement, sans exception |
-| Portée effective | Intersection des permissions de l'application et des droits de l'utilisateur | Les permissions de l'application, sur tout le tenant |
+| Claim | `scp` | `roles` dans un token app-only |
+| Consentement | utilisateur si autorisé, ou administrateur | administrateur |
+| Portée effective | droits de l'application bornés par le contexte de l'utilisateur | permissions accordées à l'application |
 
-Le dernier point est déterminant. Une permission déléguée `User.ReadWrite.All` portée par un utilisateur sans droit d'écriture sur l'annuaire ne permet rien : les droits effectifs sont l'intersection. La même permission en applicatif s'applique à l'ensemble du tenant, sans garde-fou. C'est pourquoi les app roles Microsoft Graph sont considérés comme privilégiés.
+Le nom seul ne suffit jamais : `User.Read.All` peut exister en délégué ou en applicatif.
 
 ### Le claim `roles` n'est pas réservé aux tokens app-only
 
-Le raccourci « `scp` égale délégué, `roles` égale applicatif » est vrai dans un sens et faux dans l'autre. Un token app-only ne contient jamais `scp` et porte ses permissions dans `roles`. Mais un token **utilisateur** peut lui aussi contenir `roles` : il y porte alors les **app roles assignés à cet utilisateur**, ou à un de ses groupes, sur l'application cible. Ce sont des rôles applicatifs métier, du type `Sales.Manager`, pas des permissions API.
+Un token utilisateur peut lui aussi contenir `roles`, pour y porter des app roles métier.
 
-La lecture correcte d'un token est donc :
+Lecture correcte :
 
 | Contenu observé | Interprétation |
 |---|---|
-| `scp` présent, `sub` correspondant à un utilisateur | Token délégué, permissions API déléguées |
-| `roles` présent avec des noms de permissions API, pas de `scp`, `idtyp` valant `app` | Token app-only |
-| `roles` présent avec des noms de rôles métier, `scp` également présent | Token délégué portant les app roles de l'utilisateur |
+| `scp` présent | Token délégué |
+| `roles` avec permissions API, pas de `scp`, `idtyp=app` | Token app-only |
+| `roles` métier + `scp` | Token utilisateur avec app roles |
 
-Le claim `idtyp` valant `app` est le marqueur fiable d'un token app-only.
+`idtyp=app` est le marqueur fiable d'un token app-only.
 
-### Consentement
+## Consentement
 
-Configurer une permission dans API permissions ne l'accorde pas. Tant que le consentement n'est pas donné, la colonne Status affiche un avertissement et l'appel échoue.
+Configurer une permission dans API permissions ne l'accorde pas. Le grant de consentement est une opération séparée.
 
-Le rôle nécessaire pour accorder le consentement administrateur dépend de l'API :
+Pour les permissions applicatives Microsoft Graph, le rôle attendu pour le consentement administrateur est plus privilégié que l'administration d'application ordinaire ; **Privileged Role Administrator** ou Global Administrator sont les références importantes à reconnaître dans les scénarios de moindre privilège.
 
-| Permission à consentir | Rôle suffisant |
-|---|---|
-| N'importe quelle permission de n'importe quelle API, sauf les app roles Microsoft Graph | Application Administrator ou Cloud Application Administrator |
-| Les app roles Microsoft Graph | Privileged Role Administrator ou Global Administrator |
+Application Administrator / Cloud Application Administrator gèrent les applications et de nombreux consentements pris en charge, mais ne doivent pas être traités comme suffisants pour tous les app roles Microsoft Graph.
 
-C'est une exception à retenir : les deux rôles d'administration d'applications sont impuissants sur les permissions applicatives Microsoft Graph, précisément parce qu'elles donnent un accès non filtré à l'annuaire.
+Le **admin consent workflow** permet à un utilisateur bloqué par la politique de consentement de soumettre une demande à des approbateurs.
 
-Un consentement administrateur accordé au niveau tenant sur des permissions **déléguées** les accorde à tous les utilisateurs, ce qui se matérialise par un `oauth2PermissionGrant` avec `consentType` valant `AllPrincipals` : plus aucun écran de consentement à la connexion. À l'inverse, certaines permissions déléguées sont **admin-restricted** et ne peuvent jamais être consenties par l'utilisateur lui-même, notamment `User.Read.All`, `Group.Read.All` et `Directory.ReadWrite.All`.
+### Révocation : point important
 
-Le comportement par défaut du tenant se règle dans Enterprise applications puis Consent and permissions. On peut interdire tout consentement utilisateur, l'autoriser pour les permissions à faible impact seulement, ou l'autoriser largement. Le **admin consent workflow** permet à un utilisateur bloqué de soumettre une demande à des approbateurs désignés plutôt que d'être simplement refusé.
+Révoquer un consentement supprime le grant pour les futures émissions, mais **n'invalide pas rétroactivement un access token déjà émis**.
 
-Révoquer un consentement supprime le grant, mais **n'invalide pas les access tokens déjà émis** : ils restent valides jusqu'à expiration, environ une heure. Pour couper immédiatement, il faut désactiver le service principal ou révoquer les sessions.
+De même, désactiver l'application ou supprimer un secret empêche les nouvelles authentifications / émissions selon le mécanisme concerné, mais ne garantit pas qu'un JWT déjà remis cessera immédiatement d'être accepté par la ressource.
+
+Il faut donc distinguer :
+
+```text
+configuration / grant futur
+≠
+validité d'un token déjà émis
+```
 
 ## Client credentials flow
 
-C'est le flux d'authentification des workloads sans utilisateur : démons, tâches planifiées, back-ends.
+Flux pour démons, back-ends et tâches sans utilisateur :
 
-L'application présente son `client_id` et une preuve de possession au token endpoint de son tenant, et reçoit un access token portant ses app roles dans le claim `roles`.
-
-```
+```http
 POST https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token
 Content-Type: application/x-www-form-urlencoded
 
@@ -85,99 +88,171 @@ client_id={client_id}
 &grant_type=client_credentials
 ```
 
-Le scope `.default` est **obligatoire** dans ce flux, ce n'est pas une commodité. Demander des permissions individuelles, par exemple `scope=https://graph.microsoft.com/User.Read.All`, provoque une erreur. `.default` signifie « toutes les permissions applicatives déjà configurées et consenties pour cette ressource », ce qui implique que le contenu du token dépend entièrement de ce qui a été consenti en amont, et non de ce que le code demande.
+Pour Microsoft Graph avec l'endpoint v2.0, le scope à reconnaître est :
 
-La preuve de possession peut être un **client secret**, un **certificat**, ou une **federated credential**. Le secret est le plus simple et le pire : il expire (24 mois au maximum depuis le portail), il se copie, et sa valeur n'est affichable qu'une fois. Le certificat est préférable. La federated credential supprime le problème.
+```text
+https://graph.microsoft.com/.default
+```
+
+`.default` signifie que le token reflète les permissions applicatives déjà configurées et consenties pour cette ressource.
+
+La preuve peut être un client secret, un certificat ou une federated credential. Préférer certificat / federation lorsque le scénario permet d'éviter un secret symétrique.
 
 ## Managed identities
 
-Une managed identity est une identité de workload dont Azure gère intégralement les identifiants. Elle est représentée dans Entra par un service principal, mais **sans application object et sans credential manipulable**. Il n'y a rien à créer, rien à stocker, rien à faire tourner : c'est la raison d'être de la fonctionnalité, et la réponse attendue chaque fois qu'un scénario mentionne un workload Azure qui doit accéder à une ressource sans secret en configuration.
+Une managed identity est une identité dont Azure gère les credentials. Elle est représentée dans Entra par un service principal et évite au workload de stocker un secret.
 
 | | System-assigned | User-assigned |
 |---|---|---|
-| Création | Activée sur une ressource Azure | Ressource Azure autonome |
-| Cycle de vie | Lié à la ressource, supprimée avec elle | Indépendant |
-| Partage | Une seule ressource | Plusieurs ressources |
-| Cas d'usage | Ressource unique, identité jetable | Flotte de ressources devant partager les mêmes accès, ou pré-attribution des droits avant création de la ressource |
+| Création | Activée sur une ressource | Ressource Azure autonome |
+| Cycle de vie | Lié à la ressource | Indépendant |
+| Partage | Une ressource | Plusieurs ressources |
+| Réflexe examen | doit mourir avec la ressource | même identité pour plusieurs ressources |
 
-Une managed identity qui appelle Microsoft Graph a toujours besoin d'app roles Graph consentis sur son service principal. Elle supprime le problème du credential, pas celui de l'autorisation, et l'attribution passe par Microsoft Graph ou PowerShell puisque le portail n'expose pas cet écran pour les managed identities.
+Une managed identity supprime le credential, **pas le besoin d'autorisation**. Elle a encore besoin des rôles Azure RBAC ou permissions applicatives nécessaires sur la ressource cible.
+
+## Managed service accounts
+
+Le study guide cite aussi les **managed service accounts**.
+
+Un MSA/gMSA appartient au monde Windows / AD DS : il sert à exécuter des services avec un compte dont le mot de passe est géré automatiquement par Active Directory.
+
+Un **gMSA** peut être utilisé par plusieurs hôtes autorisés.
+
+Grille rapide :
+
+- workload Azure -> managed identity ;
+- service Windows dépendant d'AD DS -> MSA/gMSA ;
+- application Entra / SaaS -> service principal ;
+- compte utilisateur pour un service -> à éviter sauf contrainte explicite.
 
 ## Workload identity federation
 
-C'est la réponse pour un workload qui tourne **hors d'Azure** et doit accéder à des ressources Entra sans secret : GitHub Actions, GitLab CI, un cluster Kubernetes non AKS, un autre cloud, ou une charge sur site.
+Pour un workload hors d'Azure disposant d'un IdP OIDC, la workload identity federation permet d'échanger un jeton externe contre un token Entra sans stocker de secret durable.
 
-Le principe est un échange de jetons. Le workload obtient un token de son propre fournisseur d'identité, par exemple le token OIDC que GitHub émet pour un job. Il le présente à Entra, qui vérifie que l'émetteur et le sujet correspondent à une **federated credential** déclarée sur l'application, et rend en échange un access token Entra. Aucun secret n'est jamais stocké côté workload.
+Scénarios : GitHub Actions, GitLab CI, Kubernetes, autre cloud, environnement sur site compatible.
 
-La configuration se fait sous App registrations puis Certificates and secrets puis Federated credentials, en déclarant l'issuer, le subject identifier et l'audience.
+La federated credential lie notamment : issuer, subject identifier et audience.
 
-La grille de décision complète tient en trois lignes : sur Azure, une managed identity ; hors d'Azure avec un IdP émettant des jetons OIDC, une workload identity federation ; en dernier recours seulement, un certificat, puis un secret.
+## Assignment required
 
-## Contrôler l'accès à une application
+Dans Enterprise applications > Properties, **Assignment required = Yes** signifie que les principals doivent être affectés pour accéder à l'application selon le scénario.
 
-### Assignment required
+Ce réglage :
 
-Dans Enterprise applications puis Properties, le réglage **Assignment required** détermine qui peut obtenir un token pour l'application. À Yes, seuls les utilisateurs, groupes et service principals explicitement affectés dans Users and groups y parviennent ; les autres reçoivent une erreur d'affectation, même s'ils sont authentifiés et même si le consentement est accordé.
+- contrôle l'accès / l'affectation ;
+- n'accorde aucun consentement API ;
+- ne transforme pas un utilisateur en Owner ;
+- ne remplace pas les app roles.
 
-Trois précisions :
+## App roles
 
-Le réglage porte sur « qui ou quoi » : d'autres applications et services sont également soumis à l'affectation, pas seulement des utilisateurs.
+Un app role est un rôle métier exposé par l'application, par exemple `Sales.Manager`.
 
-Il n'accorde aucun consentement. Affecter un utilisateur à une application ne consent à aucune permission API.
+Il peut être assigné aux types de principals autorisés par l'application et apparaît dans le claim `roles` du token concerné.
 
-Il a en revanche un effet sur le consentement dans un sens : dès qu'une application exige l'affectation, le consentement utilisateur en libre-service ne suffit plus, puisque l'utilisateur reste bloqué par l'absence d'affectation.
+Ne pas confondre :
 
-L'affectation **par groupe** exige Microsoft Entra ID P1 ou P2. En édition Free, seules les affectations individuelles fonctionnent. C'est un discriminant récurrent.
+- assignment required -> cette identité peut-elle accéder à l'application ?
+- app role -> avec quel rôle métier ?
+- API permission -> que peut faire l'application sur une API ?
 
-### App roles
+## Enterprise applications : SAML et SCIM
 
-Un app role est un rôle applicatif défini dans le manifeste de l'application, sous App roles. Il porte un `value` (par exemple `Sales.Manager`), un `displayName` et un `allowedMemberTypes` qui vaut `User`, `Application`, ou les deux.
+### SAML SSO
 
-L'affectation crée un `appRoleAssignment` et se traduit dans le token par une entrée du claim `roles`. C'est le mécanisme par lequel une application externalise son autorisation vers Entra plutôt que de gérer sa propre table de rôles.
+Pour une application SaaS SAML, les éléments à reconnaître sont :
 
-Il ne faut pas confondre l'affectation d'accès, qui répond à « cette identité peut-elle obtenir un token pour cette application », et l'app role, qui répond à « avec quel rôle métier ». Une identité peut être affectée sans app role si l'application n'en définit aucun.
+- Identifier / Entity ID ;
+- Reply URL / ACS ;
+- Sign-on URL éventuelle ;
+- Name ID et claims ;
+- certificat de signature.
 
-## Proxy d'application
+Les claims SAML se configurent dans la partie **Single sign-on** de l'Enterprise Application, pas dans API permissions.
 
-Le proxy d'application publie une application web interne, en HTTP ou HTTPS, vers des utilisateurs distants, sans ouvrir de port entrant. Un **Microsoft Entra private network connector** installé sur le réseau interne n'établit que des connexions sortantes vers le service, qui relaie les requêtes.
+### Provisioning SCIM
 
-Deux points testés :
+Le provisioning SCIM automatise les opérations Create / Update / Disable / Delete vers une application cible.
 
-La fonctionnalité exige **Microsoft Entra ID P1 ou P2**. C'est le prérequis le plus souvent posé en question.
+Chaîne mentale :
 
-La préauthentification a deux valeurs. **Microsoft Entra ID** fait authentifier l'utilisateur par Entra avant tout relais vers l'application interne, ce qui permet d'appliquer le Conditional Access. **Passthrough** relaie directement, sans authentification préalable ni Conditional Access. Un scénario qui veut appliquer la MFA sur une application interne exige donc la préauthentification Entra.
+```text
+affectation / scope
+→ mapping d'attributs
+→ moteur de provisioning
+→ application SaaS
+```
 
-Le connecteur est le même que celui de Microsoft Entra Private Access. Pour de nouveaux déploiements, Private Access est la direction recommandée par Microsoft, le proxy d'application restant pertinent pour publier une URL web accessible depuis un navigateur non équipé de client.
+Pour diagnostiquer :
+
+- **qui a changé le mapping ?** -> Audit logs ;
+- **pourquoi Bob n'a-t-il pas été provisionné ?** -> Provisioning logs.
+
+### Application collections
+
+Les application collections regroupent des applications pour améliorer leur présentation / organisation dans les expériences utilisateur. Elles ne remplacent ni l'affectation ni le consentement.
+
+## Application Proxy
+
+Application Proxy publie une application web interne via un **private network connector** qui établit des connexions sortantes.
+
+La préauthentification Microsoft Entra ID permet d'appliquer Conditional Access avant le relais vers l'application interne.
+
+À distinguer de Microsoft Entra Private Access : Application Proxy vise surtout les applications web publiées vers le navigateur ; Private Access couvre plus largement les applications privées et protocoles réseau pris en charge par Global Secure Access.
+
+## Defender for Cloud Apps
+
+Le study guide actuel demande plus que access/session policies.
+
+### Cloud Discovery
+
+Analyse l'usage des applications cloud et aide à identifier le Shadow IT.
+
+### Connected apps
+
+Connecte Defender for Cloud Apps à des services SaaS pris en charge afin d'obtenir télémétrie et capacités de gouvernance.
+
+### Application-enforced restrictions
+
+Certaines applications Microsoft peuvent appliquer leurs propres restrictions selon le contexte fourni par Conditional Access, notamment sur appareils non gérés.
+
+### Conditional Access App Control
+
+Route une session vers Defender for Cloud Apps pour contrôle en temps réel.
+
+- access policy -> autoriser / bloquer l'entrée ;
+- session policy -> contrôler téléchargement, copie, impression, etc.
+
+### OAuth app policies
+
+Servent à détecter et gouverner les applications OAuth connectées et leurs permissions / comportements.
+
+### Cloud App Catalog
+
+Catalogue des applications cloud avec informations et scores de risque, utilisé notamment avec Cloud Discovery.
 
 ## Gouverner les identités de workload
 
-Les identités de workload disposent de leurs propres contrôles, regroupés dans la licence **Microsoft Entra Workload ID Premium**, distincte de P1 et P2.
+Les contrôles avancés des service principals incluent selon licence :
 
-Le **Conditional Access for workload identities** applique des policies aux service principals, sur des signaux réduits : emplacement réseau et niveau de risque. On ne peut pas exiger de MFA d'un démon.
+- Conditional Access for workload identities ;
+- risk detections pour workload identities ;
+- gouvernance / access reviews adaptées aux identités de workload.
 
-La **détection de risque sur les identités de workload** signale des identifiants divulgués, des connexions depuis des adresses suspectes ou des schémas d'authentification anormaux.
-
-Les **access reviews d'identités de workload** permettent de recertifier les service principals affectés à des rôles privilégiés ou à des applications.
-
-En complément, Microsoft Graph permet d'auditer les credentials arrivant à expiration :
-
-```
-GET /applications?$select=id,displayName,passwordCredentials,keyCredentials
-```
+On ne peut pas imposer une MFA interactive à un daemon comme à un humain.
 
 ## Ce qui se joue sur des détails
 
-Un application object et un service principal partagent le Client ID mais pas l'Object ID.
-
-Une permission applicative exige toujours un consentement administrateur, sans exception, et les app roles Microsoft Graph exigent Privileged Role Administrator ou Global Administrator.
-
-Le nom d'une permission ne suffit pas : `User.Read.All` existe en délégué et en applicatif, et les deux ne donnent pas du tout la même chose.
-
-`roles` dans un token utilisateur porte des app roles métier, pas des permissions applicatives. Seul `idtyp` valant `app` identifie de façon fiable un token app-only.
-
-Le scope `.default` est obligatoire dans le client credentials flow, et le contenu du token dépend du consentement, pas de la demande.
-
-Révoquer un consentement ne coupe pas les tokens en cours de validité.
-
-Assignment required contrôle l'accès, pas le consentement, et l'affectation par groupe exige P1.
-
-Le proxy d'application exige P1, et seule la préauthentification Entra permet d'appliquer le Conditional Access.
+- Application object et service principal : même Client ID, Object ID différents.
+- `scp` = permissions déléguées ; `roles` peut contenir permissions applicatives ou app roles métier selon le token.
+- `idtyp=app` = marqueur fiable du token app-only.
+- `.default` = réflexe client credentials Graph.
+- Révoquer un consentement ne détruit pas rétroactivement les tokens déjà émis.
+- Managed identity supprime le secret, pas l'autorisation.
+- System-assigned = cycle de vie de la ressource ; user-assigned = identité autonome / partageable.
+- MSA/gMSA = service Windows / AD DS, pas managed identity Azure.
+- SAML claims = Enterprise Application > Single sign-on.
+- SCIM : changement de config -> Audit ; exécution -> Provisioning logs.
+- Assignment required contrôle l'accès, pas le consentement.
+- Shadow IT -> Cloud Discovery ; risky OAuth app -> OAuth app policy ; score d'app SaaS -> Cloud App Catalog.
