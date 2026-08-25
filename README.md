@@ -1,10 +1,20 @@
 # SC-300 : Microsoft Identity and Access Administrator
 
-Notes de préparation et labs documentés sur Microsoft Entra, rédigés en français pendant ma préparation à la certification SC-300.
+> ✅ **Microsoft Certified: Identity and Access Administrator Associate (SC-300)** — certification obtenue le **25 août 2026**.  
+> [Vérifier la certification sur Microsoft Learn](https://learn.microsoft.com/en-us/users/hadimouter-2788/credentials/certification/identity-and-access-administrator?tab=credentials-tab)
+
+Portfolio de préparation et de labs Microsoft Entra construit pendant ma préparation à la certification SC-300, désormais validée par l'obtention de la certification.
 
 Ce dépôt poursuit deux objectifs. Servir de support de révision structuré à qui prépare l'examen, en couvrant les quatre domaines officiels avec le niveau de détail produit qui y est réellement testé. Et documenter mon travail sur Microsoft Entra, en montrant ce que j'ai manipulé et ce que j'en ai conclu, pas seulement ce que j'ai lu.
 
 Les notes sont écrites pour être discutées : chaque affirmation vise à être vérifiable dans la documentation Microsoft, et les points où le produit se comporte autrement qu'attendu sont signalés comme tels.
+
+## Certification
+
+**Microsoft Certified: Identity and Access Administrator Associate**  
+Obtenue le **25 août 2026** après un parcours mêlant théorie, Practice Assessments, simulations originales et labs sur un tenant Microsoft Entra.
+
+La preuve publique est disponible sur [Microsoft Learn](https://learn.microsoft.com/en-us/users/hadimouter-2788/credentials/certification/identity-and-access-administrator?tab=credentials-tab). Le PDF du certificat, le Credential ID et le numéro de certification ne sont volontairement pas versionnés dans ce dépôt.
 
 ## Cadrage
 
@@ -38,6 +48,13 @@ La supervision et le diagnostic ne forment pas un domaine autonome dans le study
 - [10. Parallèle avec un IAM open source](fiches/10-parallele-keycloak.md) : ce qui se transpose depuis Keycloak et OIDC, et ce qui ne se transpose pas
 - [11. Synthèse finale](fiches/11-synthese-finale.md) : relecture de dernière minute
 - [12. Compléments study guide 2026](fiches/12-complements-study-guide-2026.md) : objectifs explicites encore peu développés ailleurs, notamment domaines personnalisés, branding, CBA/X509SKI, Windows Hello for Business, SAML/SCIM, Defender for Cloud Apps et Terms of Use
+
+### Tests originaux
+
+Le dossier [tests](tests/) contient deux simulations entièrement originales. Elles ne reproduisent pas les questions Microsoft et servent à tester le transfert de connaissances plutôt que la mémorisation d'une banque de questions.
+
+- [01. Simulation miroir](tests/01-simulation-miroir-practice-assessment.md) : 50 scénarios reformulés couvrant les compétences rencontrées pendant la préparation
+- [02. Final Coverage Test](tests/02-final-coverage-test.md) : 50 questions ciblant des objectifs SC-300 moins représentés dans le Practice Assessment utilisé pendant la préparation
 
 ### Labs
 
