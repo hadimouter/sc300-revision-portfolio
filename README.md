@@ -1,7 +1,7 @@
 # SC-300 : Microsoft Identity and Access Administrator
 
 > ✅ **Microsoft Certified: Identity and Access Administrator Associate (SC-300)** — certification obtenue le **25 août 2026**.  
-> [Vérifier la certification sur Microsoft Learn](https://learn.microsoft.com/en-us/users/hadimouter-2788/credentials/certification/identity-and-access-administrator?tab=credentials-tab)
+> [Vérifier la certification sur Microsoft Learn](https://learn.microsoft.com/api/credentials/share/en-us/HadiMouter-2788/BD76A9A50ACC3E1A?sharingId=166024F19F4D9B3E)
 
 Portfolio de préparation et de labs Microsoft Entra construit pendant ma préparation à la certification SC-300, désormais validée par l'obtention de la certification.
 
@@ -14,7 +14,9 @@ Les notes sont écrites pour être discutées : chaque affirmation vise à être
 **Microsoft Certified: Identity and Access Administrator Associate**  
 Obtenue le **25 août 2026** après un parcours mêlant théorie, Practice Assessments, simulations originales et labs sur un tenant Microsoft Entra.
 
-La preuve publique est disponible sur [Microsoft Learn](https://learn.microsoft.com/en-us/users/hadimouter-2788/credentials/certification/identity-and-access-administrator?tab=credentials-tab). Le PDF du certificat, le Credential ID et le numéro de certification ne sont volontairement pas versionnés dans ce dépôt.
+![Certificat Microsoft Certified: Identity and Access Administrator Associate délivré à Hadi Mouter, obtenu le 25 août 2026](screenshots/certification-sc300.png)
+
+La certification est vérifiable en ligne sur [Microsoft Learn](https://learn.microsoft.com/api/credentials/share/en-us/HadiMouter-2788/BD76A9A50ACC3E1A?sharingId=166024F19F4D9B3E), lien de partage officiel qui confirme le titulaire, la date d'obtention et la validité.
 
 ## Cadrage
 
